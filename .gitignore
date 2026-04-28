@@ -1,0 +1,12 @@
+bin/
+obj/
+*.user
+*.suo
+.DS_Store
+**/.DS_Store
+.vs/
+.idea/
+*.swp
+.claude/worktrees/
+wwwroot/uploads/*
+!wwwroot/uploads/.gitkeep

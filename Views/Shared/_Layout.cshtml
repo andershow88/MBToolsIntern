@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? "MerkurTools")</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&family=Roboto:wght@300;400;500;700&display=swap" />
+    <link rel="stylesheet" href="~/css/merkur.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@@1.11.3/font/bootstrap-icons.min.css" />
+    <script>(function(){var t=localStorage.getItem('mc-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+
+<nav class="mc-topbar">
+    <div class="mc-topbar-brand">
+        <img src="~/images/merkur-logo.svg" alt="Merkur" />
+        <span>MBTools <small style="font-weight:400;color:var(--mc-text-muted);font-size:.75rem;">intern</small></span>
+    </div>
+    <div class="mc-topbar-right">
+        <button class="mc-theme-toggle" id="themeToggle" title="Dark/Light Mode">
+            <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+        </button>
+    </div>
+</nav>
+
+<div class="mc-main">
+    @RenderBody()
+</div>
+
+<!-- E-Mail-Anhang-Dialog (verschlüsselte PDF an Outlook senden) -->
+<div class="mc-modal" id="mcMailModal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="mc-modal-overlay" onclick="mcMailSchliessen(false)"></div>
+    <div class="mc-modal-content" style="max-width:580px; max-height:90vh; display:flex; flex-direction:column;">
+        <div class="mc-modal-header">
+            <i class="bi bi-envelope-paper" style="color:var(--mc-petrol);"></i>
+            <span>E-Mail mit verschlüsselter PDF</span>
+        </div>
+        <div class="mc-modal-body" style="overflow-y:auto;">
+            <label for="mcMailAn" style="display:block; font-size:.85rem; color:var(--mc-text-muted); margin-bottom:.4rem;">An (mehrere E-Mail-Adressen mit Komma trennen)</label>
+            <input id="mcMailAn" type="text" placeholder="empfaenger@beispiel.de"
+                style="width:100%; padding:.55rem .75rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; background:var(--mc-bg-card); color:var(--mc-text-dark); margin-bottom:.85rem; outline:none;"
+                onfocus="this.style.borderColor='var(--mc-petrol)'" onblur="this.style.borderColor='var(--mc-border)'" />
+
+            <label for="mcMailBetreff" style="display:block; font-size:.85rem; color:var(--mc-text-muted); margin-bottom:.4rem;">Betreff</label>
+            <input id="mcMailBetreff" type="text"
+                style="width:100%; padding:.55rem .75rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; background:var(--mc-bg-card); color:var(--mc-text-dark); margin-bottom:.85rem; outline:none;"
+                onfocus="this.style.borderColor='var(--mc-petrol)'" onblur="this.style.borderColor='var(--mc-border)'" />
+
+            <label for="mcMailText" style="display:block; font-size:.85rem; color:var(--mc-text-muted); margin-bottom:.4rem;">Nachricht</label>
+            <textarea id="mcMailText" rows="7"
+                style="width:100%; padding:.55rem .75rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; background:var(--mc-bg-card); color:var(--mc-text-dark); margin-bottom:.85rem; outline:none; resize:vertical; font-family:inherit; line-height:1.5;"
+                onfocus="this.style.borderColor='var(--mc-petrol)'" onblur="this.style.borderColor='var(--mc-border)'"></textarea>
+
+            <label for="mcMailName" style="display:block; font-size:.85rem; color:var(--mc-text-muted); margin-bottom:.4rem;">Dateiname (Anhang)</label>
+            <input id="mcMailName" type="text"
+                style="width:100%; padding:.55rem .75rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; background:var(--mc-bg-card); color:var(--mc-text-dark); margin-bottom:.85rem; outline:none;"
+                onfocus="this.style.borderColor='var(--mc-petrol)'" onblur="this.style.borderColor='var(--mc-border)'" />
+
+            <div style="font-size:.78rem; color:var(--mc-text-muted); display:flex; gap:.4rem; align-items:flex-start;">
+                <i class="bi bi-info-circle" style="color:var(--mc-petrol); margin-top:.1rem; flex-shrink:0;"></i>
+                <span>Outlook öffnet sich mit fertigem Empfänger, Betreff und Text — die Mail ist <strong>bearbeitbar</strong>. Die verschlüsselte PDF landet in deinem Download-Ordner. Ziehe sie ins Outlook-Fenster oder klicke <strong>Anhang einfügen</strong>, dann ist die Mail komplett.</span>
+            </div>
+        </div>
+        <div class="mc-modal-footer">
+            <button class="btn-mc btn-mc-outline" onclick="mcMailSchliessen(false)">Abbrechen</button>
+            <button class="btn-mc btn-mc-filled" onclick="mcMailErstellen()"><i class="bi bi-envelope-arrow-up"></i> E-Mail erstellen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Globaler Speichern-Dialog (PDF herunterladen) -->
+<div class="mc-modal" id="mcSaveModal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="mc-modal-overlay" onclick="mcSaveSchliessen(false)"></div>
+    <div class="mc-modal-content">
+        <div class="mc-modal-header">
+            <i class="bi bi-download" style="color:var(--mc-petrol);"></i>
+            <span>PDF speichern</span>
+        </div>
+        <div class="mc-modal-body">
+            <label for="mcSaveName" style="display:block; font-size:.85rem; color:var(--mc-text-muted); margin-bottom:.4rem;">Dateiname</label>
+            <input id="mcSaveName" type="text"
+                style="width:100%; padding:.55rem .75rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; background:var(--mc-bg-card); color:var(--mc-text-dark); margin-bottom:.85rem; outline:none;"
+                onfocus="this.style.borderColor='var(--mc-petrol)'" onblur="this.style.borderColor='var(--mc-border)'" />
+            <div style="font-size:.78rem; color:var(--mc-text-muted); display:flex; gap:.4rem; align-items:flex-start;">
+                <i class="bi bi-info-circle" style="color:var(--mc-petrol); margin-top:.1rem; flex-shrink:0;"></i>
+                <span id="mcSaveHinweis"></span>
+            </div>
+        </div>
+        <div class="mc-modal-footer">
+            <button class="btn-mc btn-mc-outline" onclick="mcSaveSchliessen(false)">Abbrechen</button>
+            <button id="mcSavePickerBtn" class="btn-mc btn-mc-primary" style="display:none;" onclick="mcSavePicker()"><i class="bi bi-folder2-open"></i> Speicherort wählen…</button>
+            <button class="btn-mc btn-mc-filled" onclick="mcSaveDownloads()"><i class="bi bi-download"></i> In Downloads speichern</button>
+        </div>
+    </div>
+</div>
+
+<!-- Globaler Merkur-Dialog -->
+<div class="mc-modal" id="mcModal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="mc-modal-overlay" onclick="mcModalSchliessen(false)"></div>
+    <div class="mc-modal-content">
+        <div class="mc-modal-header">
+            <i id="mcModalIcon" class="bi bi-info-circle"></i>
+            <span id="mcModalTitle">Hinweis</span>
+        </div>
+        <div class="mc-modal-body" id="mcModalBody"></div>
+        <div class="mc-modal-footer">
+            <button class="btn-mc btn-mc-outline" id="mcModalCancel" onclick="mcModalSchliessen(false)" style="display:none;">Abbrechen</button>
+            <button class="btn-mc btn-mc-filled" id="mcModalOk" onclick="mcModalSchliessen(true)">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    let resolver = null;
+    const farben = { info: 'var(--mc-petrol)', warn: 'var(--mc-warning)', error: 'var(--mc-danger)', success: 'var(--mc-success)' };
+
+    window.mcModal = function(opts) {
+        return new Promise(function(resolve){
+            const root = document.getElementById('mcModal');
+            const icon = document.getElementById('mcModalIcon');
+            const titel = document.getElementById('mcModalTitle');
+            const body = document.getElementById('mcModalBody');
+            const ok = document.getElementById('mcModalOk');
+            const cancel = document.getElementById('mcModalCancel');
+
+            titel.textContent = opts.titel || 'Hinweis';
+            body.textContent = opts.text || '';
+            icon.className = 'bi ' + (opts.icon || 'bi-info-circle');
+            icon.style.color = farben[opts.variante] || farben.info;
+            ok.textContent = opts.okText || 'OK';
+            ok.className = 'btn-mc ' + (opts.variante === 'error' || opts.variante === 'warn' ? 'btn-mc-filled' : 'btn-mc-filled');
+            if (opts.bestaetigung) {
+                cancel.style.display = '';
+                cancel.textContent = opts.abbruchText || 'Abbrechen';
+            } else {
+                cancel.style.display = 'none';
+            }
+            root.style.display = '';
+            ok.focus();
+            resolver = resolve;
+        });
+    };
+    window.mcModalSchliessen = function(wert) {
+        document.getElementById('mcModal').style.display = 'none';
+        if (resolver) { resolver(wert); resolver = null; }
+    };
+    window.mcAlert = function(text, opts) {
+        opts = opts || {};
+        return mcModal({ text: text, titel: opts.titel || 'Hinweis', icon: opts.icon || 'bi-info-circle', variante: opts.variante || 'info' });
+    };
+    window.mcError = function(text, titel) {
+        return mcModal({ text: text, titel: titel || 'Fehler', icon: 'bi-exclamation-triangle-fill', variante: 'error' });
+    };
+    window.mcConfirm = function(text, opts) {
+        opts = opts || {};
+        return mcModal({ text: text, titel: opts.titel || 'Rückfrage', icon: opts.icon || 'bi-question-circle', variante: opts.variante || 'info', bestaetigung: true, okText: opts.okText, abbruchText: opts.abbruchText });
+    };
+
+    document.addEventListener('keydown', function(e){
+        if (document.getElementById('mcModal').style.display === 'none') return;
+        if (e.key === 'Escape') mcModalSchliessen(false);
+        if (e.key === 'Enter') mcModalSchliessen(true);
+    });
+
+    // ── Speichern-Dialog (PDF/Datei mit Dateinamen-Änderung) ──
+    let saveBlob = null;
+    let saveResolver = null;
+
+    window.mcSpeichern = function(blob, vorgabeName) {
+        return new Promise(function(resolve){
+            saveBlob = blob;
+            saveResolver = resolve;
+            const inp = document.getElementById('mcSaveName');
+            inp.value = vorgabeName || 'datei.pdf';
+            const hatPicker = typeof window.showSaveFilePicker === 'function' && window.isSecureContext;
+            document.getElementById('mcSavePickerBtn').style.display = hatPicker ? '' : 'none';
+            document.getElementById('mcSaveHinweis').innerHTML = hatPicker
+                ? 'Bestätige <strong>In Downloads speichern</strong>, um die Datei direkt zu speichern, oder klicke <strong>Speicherort wählen…</strong>, um einen anderen Pfad zu wählen (öffnet einen System-Dialog).'
+                : 'Die Datei wird in deinen Standard-Download-Ordner gespeichert. In den Browser-Einstellungen kannst du den Ordner ändern oder „Vor Download fragen" aktivieren.';
+            document.getElementById('mcSaveModal').style.display = '';
+            inp.focus();
+            const punkt = inp.value.lastIndexOf('.');
+            if (punkt > 0) inp.setSelectionRange(0, punkt);
+        });
+    };
+
+    window.mcSaveSchliessen = function(wert) {
+        document.getElementById('mcSaveModal').style.display = 'none';
+        saveBlob = null;
+        if (saveResolver) { saveResolver(wert); saveResolver = null; }
+    };
+
+    function dateinameNormalisieren(eingabe, fallback) {
+        let n = (eingabe || '').trim();
+        if (!n) n = fallback || 'datei.pdf';
+        n = n.replace(/[\\/:*?"<>|]/g, '_');
+        if (!/\.pdf$/i.test(n)) n += '.pdf';
+        return n;
+    }
+
+    window.mcSaveDownloads = function() {
+        if (!saveBlob) return;
+        const name = dateinameNormalisieren(document.getElementById('mcSaveName').value, 'datei.pdf');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(saveBlob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+        mcSaveSchliessen(true);
+    };
+
+    window.mcSavePicker = async function() {
+        if (!saveBlob) return;
+        const name = dateinameNormalisieren(document.getElementById('mcSaveName').value, 'datei.pdf');
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: name,
+                types: [{ description: 'PDF-Dokument', accept: { 'application/pdf': ['.pdf'] } }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(saveBlob);
+            await writable.close();
+            mcSaveSchliessen(true);
+        } catch (e) {
+            if (e && e.name !== 'AbortError') {
+                mcSaveSchliessen(false);
+                mcError('Speichern fehlgeschlagen: ' + (e.message || e.name));
+            }
+        }
+    };
+
+    document.addEventListener('keydown', function(e){
+        if (document.getElementById('mcSaveModal').style.display === 'none') return;
+        if (e.key === 'Escape') mcSaveSchliessen(false);
+        if (e.key === 'Enter') mcSaveDownloads();
+    });
+
+    // ── Mail-Anhang-Dialog (.eml mit PDF-Attachment) ──
+    let mailBlob = null;
+    let mailResolver = null;
+
+    window.mcMailDialog = function(blob, vorgabeName) {
+        return new Promise(function(resolve){
+            mailBlob = blob;
+            mailResolver = resolve;
+            const name = vorgabeName || 'datei.pdf';
+            document.getElementById('mcMailName').value = name;
+            document.getElementById('mcMailAn').value = '';
+            document.getElementById('mcMailBetreff').value = 'Verschlüsselte PDF: ' + name.replace(/\.pdf$/i, '');
+            document.getElementById('mcMailText').value =
+                'Hallo,\n\n' +
+                'im Anhang findest du die verschlüsselte PDF.\n' +
+                'Das Passwort sende ich dir auf separatem Weg (z. B. SMS / Telefon).\n\n' +
+                'Viele Grüße';
+            document.getElementById('mcMailModal').style.display = '';
+            const an = document.getElementById('mcMailAn');
+            an.focus();
+        });
+    };
+
+    window.mcMailSchliessen = function(wert) {
+        document.getElementById('mcMailModal').style.display = 'none';
+        mailBlob = null;
+        if (mailResolver) { mailResolver(wert); mailResolver = null; }
+    };
+
+    window.mcMailErstellen = async function() {
+        if (!mailBlob) return;
+        const dateiname = dateinameNormalisieren(document.getElementById('mcMailName').value, 'datei.pdf');
+        const empfaengerRaw = (document.getElementById('mcMailAn').value || '').trim();
+        const betreff = (document.getElementById('mcMailBetreff').value || '').trim();
+        const nachricht = document.getElementById('mcMailText').value || '';
+        try {
+            // 1. PDF in Downloads speichern
+            const url = URL.createObjectURL(mailBlob);
+            const dl = document.createElement('a');
+            dl.href = url; dl.download = dateiname;
+            document.body.appendChild(dl); dl.click();
+            setTimeout(function(){ URL.revokeObjectURL(url); dl.remove(); }, 1500);
+
+            // 2. mailto:-URL bauen (Empfänger als Komma-Liste, Sonderzeichen in subject/body URL-codieren)
+            const empfaenger = empfaengerRaw.split(',').map(function(s){ return s.trim(); }).filter(Boolean).join(',');
+            const params = [];
+            if (betreff) params.push('subject=' + encodeURIComponent(betreff));
+            if (nachricht) params.push('body=' + encodeURIComponent(nachricht.replace(/\r?\n/g, '\r\n')));
+            const mailtoUrl = 'mailto:' + empfaenger + (params.length ? '?' + params.join('&') : '');
+
+            mcMailSchliessen(true);
+
+            // 3. Mail-Client öffnen (kurze Verzögerung, damit Download zuerst startet)
+            setTimeout(function(){
+                const ml = document.createElement('a');
+                ml.href = mailtoUrl;
+                document.body.appendChild(ml); ml.click(); ml.remove();
+            }, 250);
+
+            // 4. Hinweis-Dialog
+            setTimeout(function(){
+                mcAlert(
+                    'Outlook öffnet sich gleich mit deinem Mail-Entwurf.\n\n' +
+                    'Die verschlüsselte PDF "' + dateiname + '" wurde in deinen Download-Ordner gespeichert. Ziehe sie ins geöffnete Outlook-Fenster oder klicke dort auf "Anhang einfügen".',
+                    { titel: 'Mail-Entwurf wird geöffnet', icon: 'bi-envelope-check', variante: 'success' }
+                );
+            }, 500);
+        } catch (e) {
+            mcMailSchliessen(false);
+            mcError('E-Mail-Erstellung fehlgeschlagen: ' + (e.message || e.name));
+        }
+    };
+
+    document.addEventListener('keydown', function(e){
+        if (document.getElementById('mcMailModal').style.display === 'none') return;
+        if (e.key === 'Escape') mcMailSchliessen(false);
+    });
+})();
+</script>
+
+<script>
+    const stored = localStorage.getItem('mc-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', stored);
+    updateIcon(stored);
+    document.getElementById('themeToggle')?.addEventListener('click', function () {
+        const cur = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('mc-theme', next);
+        updateIcon(next);
+    });
+    function updateIcon(t) {
+        const i = document.getElementById('themeIcon');
+        if (i) i.className = t === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    }
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

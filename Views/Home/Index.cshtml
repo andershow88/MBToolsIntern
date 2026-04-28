@@ -1,0 +1,354 @@
+@{ ViewData["Title"] = "Dokumenten-Tools"; }
+
+<!-- Übersicht -->
+<section class="mc-section">
+    <div class="mc-section-title"><i class="bi bi-tools"></i> MerkurTools — Dokumenten-Werkzeuge</div>
+
+    <div class="tool-grid">
+        <div class="tool-card" onclick="toolOeffnen('encrypt')">
+            <div class="tool-icon" style="background:#A70C23;"><i class="bi bi-shield-lock"></i></div>
+            <div><div class="tool-name">PDF verschlüsseln</div><div class="tool-desc">PDF mit AES-256 verschlüsseln, sicheres Zufallspasswort wird einmalig angezeigt</div></div>
+        </div>
+        <div class="tool-card" onclick="toolOeffnen('convert')">
+            <div class="tool-icon" style="background:#DE6250;"><i class="bi bi-file-earmark-arrow-down"></i></div>
+            <div><div class="tool-name">Dokument → PDF</div><div class="tool-desc">Word, Excel, PowerPoint, OpenDocument als PDF konvertieren</div></div>
+        </div>
+        <div class="tool-card" onclick="toolOeffnen('text')">
+            <div class="tool-icon" style="background:#A2AE3C;"><i class="bi bi-body-text"></i></div>
+            <div><div class="tool-name">Text aus PDF extrahieren</div><div class="tool-desc">Den gesamten Text eines PDFs als Klartext ausgeben</div></div>
+        </div>
+        <div class="tool-card" onclick="toolOeffnen('split')">
+            <div class="tool-icon" style="background:var(--mc-gold);"><i class="bi bi-scissors"></i></div>
+            <div><div class="tool-name">PDF aufteilen</div><div class="tool-desc">Seiten aus einem PDF extrahieren oder den Seitenbereich auswählen</div></div>
+        </div>
+        <div class="tool-card" onclick="toolOeffnen('merge')">
+            <div class="tool-icon"><i class="bi bi-files"></i></div>
+            <div><div class="tool-name">PDFs zusammenführen</div><div class="tool-desc">Mehrere PDF-Dateien zu einem Dokument zusammenfügen</div></div>
+        </div>
+        <div class="tool-card" onclick="toolOeffnen('info')">
+            <div class="tool-icon" style="background:#6C4562;"><i class="bi bi-info-circle"></i></div>
+            <div><div class="tool-name">PDF-Informationen</div><div class="tool-desc">Metadaten anzeigen: Seitenanzahl, Autor, Erstelldatum, Dateigröße</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- PDF verschlüsseln -->
+<section class="mc-section" id="panel-encrypt" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-shield-lock"></i> PDF verschlüsseln <button onclick="toolSchliessen('encrypt')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card">
+        <div class="upload-zone" onclick="document.getElementById('encryptFile').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');encryptStart(event.dataTransfer.files[0])">
+            <i class="bi bi-shield-lock" style="font-size:2.5rem; color:#A70C23;"></i>
+            <div style="margin-top:.5rem; color:var(--mc-text-muted);">PDF hierher ziehen oder klicken</div>
+            <div style="font-size:.75rem; color:var(--mc-text-muted); margin-top:.35rem;">Verschlüsselung mit AES-256 · neues Zufallspasswort pro Datei</div>
+            <input type="file" id="encryptFile" accept=".pdf" style="display:none;" onchange="encryptStart(this.files[0])" />
+        </div>
+        <div class="result-card" id="encryptResult"></div>
+    </div>
+</section>
+
+<!-- ═══ Tool-Panels ═══ -->
+
+<!-- PDF zusammenführen -->
+<section class="mc-section" id="panel-merge" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-files"></i> PDFs zusammenführen <button onclick="toolSchliessen('merge')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card">
+        <div class="upload-zone" id="mergeZone" onclick="document.getElementById('mergeFiles').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');mergeAddFiles(event.dataTransfer.files)">
+            <i class="bi bi-file-earmark-pdf" style="font-size:2.5rem; color:var(--mc-petrol);"></i>
+            <div style="margin-top:.5rem; color:var(--mc-text-muted);">PDFs hierher ziehen oder klicken (mindestens 2)</div>
+            <input type="file" id="mergeFiles" accept=".pdf" multiple style="display:none;" onchange="mergeAddFiles(this.files)" />
+        </div>
+        <div class="file-list" id="mergeList"></div>
+        <div style="margin-top:1rem; display:flex; gap:.75rem;">
+            <button class="btn-mc btn-mc-filled" onclick="mergeStart()" id="mergeBtn"><i class="bi bi-files"></i> Zusammenführen</button>
+            <button class="btn-mc btn-mc-outline" onclick="mergeClear()"><i class="bi bi-trash"></i> Alle entfernen</button>
+        </div>
+        <div class="result-card" id="mergeResult"></div>
+    </div>
+</section>
+
+<!-- PDF aufteilen -->
+<section class="mc-section" id="panel-split" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-scissors"></i> PDF aufteilen <button onclick="toolSchliessen('split')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card">
+        <div class="upload-zone" onclick="document.getElementById('splitFile').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');splitSetFile(event.dataTransfer.files[0])">
+            <i class="bi bi-file-earmark-pdf" style="font-size:2.5rem; color:var(--mc-gold);"></i>
+            <div style="margin-top:.5rem; color:var(--mc-text-muted);">PDF hierher ziehen oder klicken</div>
+            <input type="file" id="splitFile" accept=".pdf" style="display:none;" onchange="splitSetFile(this.files[0])" />
+        </div>
+        <div id="splitInfo" style="display:none; margin-top:1rem;">
+            <div id="splitFileName" style="font-weight:600; margin-bottom:.75rem;"></div>
+            <div style="display:flex; gap:.75rem; align-items:end; flex-wrap:wrap;">
+                <div><label style="font-size:.8rem; color:var(--mc-text-muted);">Von Seite</label><input type="number" id="splitVon" min="1" value="1" style="display:block; width:80px; padding:.4rem .6rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm);" /></div>
+                <div><label style="font-size:.8rem; color:var(--mc-text-muted);">Bis Seite</label><input type="number" id="splitBis" min="1" style="display:block; width:80px; padding:.4rem .6rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm);" /></div>
+                <button class="btn-mc btn-mc-filled" onclick="splitStart()"><i class="bi bi-scissors"></i> Extrahieren</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Text extrahieren -->
+<section class="mc-section" id="panel-text" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-body-text"></i> Text aus PDF <button onclick="toolSchliessen('text')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card">
+        <div class="upload-zone" onclick="document.getElementById('textFile').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');textExtract(event.dataTransfer.files[0])">
+            <i class="bi bi-body-text" style="font-size:2.5rem; color:#A2AE3C;"></i>
+            <div style="margin-top:.5rem; color:var(--mc-text-muted);">PDF hierher ziehen oder klicken</div>
+            <input type="file" id="textFile" accept=".pdf" style="display:none;" onchange="textExtract(this.files[0])" />
+        </div>
+        <div class="result-card" id="textResult"></div>
+    </div>
+</section>
+
+<!-- PDF Info -->
+<section class="mc-section" id="panel-info" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-info-circle"></i> PDF-Informationen <button onclick="toolSchliessen('info')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card">
+        <div class="upload-zone" onclick="document.getElementById('infoFile').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');infoAnalyze(event.dataTransfer.files[0])">
+            <i class="bi bi-info-circle" style="font-size:2.5rem; color:#6C4562;"></i>
+            <div style="margin-top:.5rem; color:var(--mc-text-muted);">PDF hierher ziehen oder klicken</div>
+            <input type="file" id="infoFile" accept=".pdf" style="display:none;" onchange="infoAnalyze(this.files[0])" />
+        </div>
+        <div class="result-card" id="infoResult"></div>
+    </div>
+</section>
+
+<!-- Dokument → PDF -->
+<section class="mc-section" id="panel-convert" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-file-earmark-arrow-down"></i> Dokument → PDF <button onclick="toolSchliessen('convert')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card">
+        <div class="upload-zone" onclick="document.getElementById('convertFile').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');convertStart(event.dataTransfer.files[0])">
+            <i class="bi bi-file-earmark-arrow-down" style="font-size:2.5rem; color:#DE6250;"></i>
+            <div style="margin-top:.5rem; color:var(--mc-text-muted);">Dokument hierher ziehen oder klicken</div>
+            <div style="font-size:.75rem; color:var(--mc-text-muted); margin-top:.35rem;">Word (.docx/.doc) · Excel (.xlsx/.xls) · PowerPoint (.pptx) · OpenDocument · RTF · TXT · HTML · CSV</div>
+            <input type="file" id="convertFile" accept=".docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.ods,.odp,.rtf,.txt,.html,.csv" style="display:none;" onchange="convertStart(this.files[0])" />
+        </div>
+        <div class="result-card" id="convertResult"></div>
+    </div>
+</section>
+
+@section Scripts {
+<script>
+function toolOeffnen(id) {
+    document.getElementById('panel-' + id).style.display = '';
+    document.getElementById('panel-' + id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function toolSchliessen(id) {
+    document.getElementById('panel-' + id).style.display = 'none';
+    if (id === 'encrypt') encryptReset();
+}
+function encryptReset() {
+    const f = document.getElementById('encryptFile'); if (f) f.value = '';
+    const r = document.getElementById('encryptResult');
+    if (r) { r.innerHTML = ''; r.style.display = 'none'; }
+    encryptBlob = null; encryptName = '';
+}
+
+// Download-Cache pro Tool — wird vom Speichern-Dialog gelesen
+let mergeBlob = null;
+let convertBlob = null, convertName = '';
+let encryptBlob = null, encryptName = '';
+
+function formatSize(b) { return b < 1024*1024 ? (b/1024).toFixed(0) + ' KB' : (b/1024/1024).toFixed(1) + ' MB'; }
+
+// ═══ PDF Merge ═══
+let mergeFileList = [];
+function mergeAddFiles(files) {
+    for (const f of files) { if (f.name.endsWith('.pdf')) mergeFileList.push(f); }
+    mergeRender();
+}
+function mergeRemove(idx) { mergeFileList.splice(idx, 1); mergeRender(); }
+function mergeClear() { mergeFileList = []; mergeRender(); }
+function mergeRender() {
+    const el = document.getElementById('mergeList');
+    el.innerHTML = mergeFileList.map((f, i) =>
+        `<div class="file-item"><i class="bi bi-file-earmark-pdf"></i> ${f.name} <span class="file-size">${formatSize(f.size)}</span> <button class="file-remove" onclick="mergeRemove(${i})"><i class="bi bi-x"></i></button></div>`
+    ).join('');
+}
+async function mergeStart() {
+    if (mergeFileList.length < 2) { mcAlert('Mindestens 2 PDF-Dateien erforderlich.', { variante: 'warn', icon: 'bi-exclamation-circle' }); return; }
+    const btn = document.getElementById('mergeBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird zusammengeführt...';
+    const fd = new FormData();
+    mergeFileList.forEach(f => fd.append('dateien', f));
+    try {
+        const r = await fetch('/api/PdfMerge', { method: 'POST', body: fd });
+        if (r.headers.get('content-type')?.includes('pdf')) {
+            mergeBlob = await r.blob();
+            const res = document.getElementById('mergeResult');
+            res.style.display = 'block';
+            res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;"><i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i><div><strong>${mergeFileList.length} PDFs zusammengeführt</strong></div><button class="btn-mc btn-mc-filled" onclick="mcSpeichern(mergeBlob,'zusammengefuehrt.pdf')" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button></div>`;
+        } else {
+            const d = await r.json();
+            mcError(d.error || 'Zusammenführen fehlgeschlagen.');
+        }
+    } catch { mcError('Fehler bei der Zusammenführung.'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-files"></i> Zusammenführen'; }
+}
+
+// ═══ PDF Split ═══
+let splitCurrentFile = null;
+function splitSetFile(f) {
+    if (!f) return;
+    splitCurrentFile = f;
+    document.getElementById('splitFileName').textContent = f.name + ' (' + formatSize(f.size) + ')';
+    document.getElementById('splitInfo').style.display = 'block';
+    // Get page count
+    const fd = new FormData(); fd.append('datei', f);
+    fetch('/api/PdfInfo', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        if (d.seiten) { document.getElementById('splitBis').value = d.seiten; document.getElementById('splitBis').max = d.seiten; document.getElementById('splitVon').max = d.seiten; }
+    });
+}
+async function splitStart() {
+    if (!splitCurrentFile) return;
+    const von = document.getElementById('splitVon').value;
+    const bis = document.getElementById('splitBis').value;
+    const fd = new FormData();
+    fd.append('datei', splitCurrentFile);
+    fd.append('vonSeite', von); fd.append('bisSeite', bis);
+    const r = await fetch('/api/PdfSplit', { method: 'POST', body: fd });
+    if (r.headers.get('content-type')?.includes('pdf')) {
+        const blob = await r.blob();
+        mcSpeichern(blob, `seiten_${von}-${bis}.pdf`);
+    } else { const d = await r.json(); mcError(d.error || 'Aufteilen fehlgeschlagen.'); }
+}
+
+// ═══ PDF Text ═══
+async function textExtract(f) {
+    if (!f) return;
+    const res = document.getElementById('textResult');
+    res.style.display = 'block';
+    res.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--mc-text-muted);"><i class="bi bi-hourglass-split"></i> Text wird extrahiert...</div>';
+    const fd = new FormData(); fd.append('datei', f);
+    const r = await fetch('/api/PdfText', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) { res.innerHTML = '<div style="color:var(--mc-danger);">' + d.error + '</div>'; return; }
+    res.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <strong>${f.name} — ${d.seiten} Seiten</strong>
+        <button class="btn-mc btn-mc-primary" onclick="navigator.clipboard.writeText(document.getElementById('extractedText').value);this.innerHTML='<i class=\\'bi bi-check\\'></i> Kopiert'" style="font-size:.78rem;"><i class="bi bi-clipboard"></i> Kopieren</button>
+    </div><textarea id="extractedText" readonly style="width:100%;height:300px;padding:.75rem;border:1px solid var(--mc-border);border-radius:var(--mc-radius-sm);font-family:monospace;font-size:.8rem;background:var(--mc-bg-alt);color:var(--mc-text);resize:vertical;">${d.text.replace(/</g,'&lt;')}</textarea>`;
+}
+
+// ═══ Dokument → PDF ═══
+async function convertStart(f) {
+    if (!f) return;
+    const res = document.getElementById('convertResult');
+    res.style.display = 'block';
+    res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem;"><i class="bi bi-hourglass-split" style="color:var(--mc-petrol);"></i> <span>${f.name} wird konvertiert... (kann einige Sekunden dauern)</span></div>`;
+    const fd = new FormData(); fd.append('datei', f);
+    try {
+        const r = await fetch('/api/ConvertToPdf', { method: 'POST', body: fd });
+        if (r.headers.get('content-type')?.includes('pdf')) {
+            convertBlob = await r.blob();
+            convertName = f.name.replace(/\.[^.]+$/, '.pdf');
+            res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;">
+                <i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i>
+                <div><strong>${f.name}</strong> → <strong>${convertName}</strong></div>
+                <button class="btn-mc btn-mc-filled" onclick="mcSpeichern(convertBlob, convertName)" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> PDF herunterladen</button>
+            </div>`;
+        } else {
+            const d = await r.json();
+            res.innerHTML = `<div style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> ${d.error || 'Konvertierung fehlgeschlagen'}</div>`;
+        }
+    } catch { res.innerHTML = '<div style="color:var(--mc-danger);">Verbindungsfehler</div>'; }
+}
+
+// ═══ PDF verschlüsseln ═══
+async function encryptStart(f) {
+    if (!f) return;
+    if (!f.name.toLowerCase().endsWith('.pdf')) { mcAlert('Bitte eine PDF-Datei auswählen.', { variante: 'warn', icon: 'bi-file-earmark-pdf' }); return; }
+    const res = document.getElementById('encryptResult');
+    res.style.display = 'block';
+    res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem;"><i class="bi bi-hourglass-split" style="color:var(--mc-petrol);"></i> <span>${f.name} wird verschlüsselt...</span></div>`;
+    const fd = new FormData(); fd.append('datei', f);
+    try {
+        const r = await fetch('/api/PdfEncrypt', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) { res.innerHTML = `<div style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> ${d.error}</div>`; return; }
+
+        // Blob aus Base64 erzeugen und für den Speichern-Dialog merken
+        const bin = atob(d.data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        encryptBlob = new Blob([bytes], { type: 'application/pdf' });
+        encryptName = d.dateiname;
+
+        const pwSafe = d.passwort.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        res.innerHTML = `
+            <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+                <i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i>
+                <div style="flex:1;min-width:200px;"><strong>${f.name}</strong> wurde mit AES-256 verschlüsselt</div>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                    <button class="btn-mc btn-mc-primary" onclick="mcMailDialog(encryptBlob, encryptName)" style="font-size:.82rem;"><i class="bi bi-envelope-paper"></i> Als E-Mail-Anhang</button>
+                    <button class="btn-mc btn-mc-filled" onclick="mcSpeichern(encryptBlob, encryptName)" style="font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button>
+                </div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(167,12,35,.06),rgba(167,12,35,.02));border:1px solid rgba(167,12,35,.25);border-radius:var(--mc-radius-sm);padding:1rem;">
+                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:var(--mc-danger);font-weight:600;font-size:.9rem;">
+                    <i class="bi bi-key-fill"></i> Passwort (wird nur jetzt einmal angezeigt!)
+                </div>
+                <div style="display:flex;gap:.5rem;align-items:center;">
+                    <input id="encryptPwd" type="text" readonly value="${pwSafe}" onclick="this.select()"
+                        style="flex:1;font-family:'Courier New',monospace;font-size:1.15rem;font-weight:600;letter-spacing:1px;padding:.6rem .8rem;border:1px solid var(--mc-border);border-radius:var(--mc-radius-sm);background:var(--mc-bg-card);color:var(--mc-text-dark);" />
+                    <button class="btn-mc btn-mc-primary" id="encryptCopyBtn" onclick="encryptCopy()"><i class="bi bi-clipboard"></i> Kopieren</button>
+                </div>
+                <div style="font-size:.75rem;color:var(--mc-text-muted);margin-top:.6rem;">
+                    <i class="bi bi-info-circle"></i> Speichere das Passwort sicher und sende es getrennt vom PDF (z.B. SMS / anderer Kanal als E-Mail).
+                </div>
+            </div>`;
+        document.getElementById('encryptFile').value = '';
+    } catch (e) {
+        res.innerHTML = '<div style="color:var(--mc-danger);">Verbindungsfehler bei der Verschlüsselung.</div>';
+    }
+}
+
+async function encryptCopy() {
+    const inp = document.getElementById('encryptPwd');
+    const btn = document.getElementById('encryptCopyBtn');
+    if (!inp || !btn) return;
+    try {
+        await navigator.clipboard.writeText(inp.value);
+        btn.innerHTML = '<i class="bi bi-check"></i> Kopiert';
+        setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Kopieren'; }, 2000);
+    } catch {
+        inp.select(); document.execCommand('copy');
+        btn.innerHTML = '<i class="bi bi-check"></i> Kopiert';
+        setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Kopieren'; }, 2000);
+    }
+}
+
+// ═══ PDF Info ═══
+async function infoAnalyze(f) {
+    if (!f) return;
+    const res = document.getElementById('infoResult');
+    res.style.display = 'block';
+    res.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--mc-text-muted);"><i class="bi bi-hourglass-split"></i> Wird analysiert...</div>';
+    const fd = new FormData(); fd.append('datei', f);
+    const r = await fetch('/api/PdfInfo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) { res.innerHTML = '<div style="color:var(--mc-danger);">' + d.error + '</div>'; return; }
+    res.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.875rem;">
+        <tr><td style="padding:.4rem .6rem;color:var(--mc-text-muted);width:140px;">Dateiname</td><td style="font-weight:600;">${d.dateiname}</td></tr>
+        <tr style="background:var(--mc-bg-alt);"><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Dateigröße</td><td>${formatSize(d.groesse)}</td></tr>
+        <tr><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Seiten</td><td style="font-weight:600;">${d.seiten}</td></tr>
+        <tr style="background:var(--mc-bg-alt);"><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Titel</td><td>${d.titel || '—'}</td></tr>
+        <tr><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Autor</td><td>${d.autor || '—'}</td></tr>
+        <tr style="background:var(--mc-bg-alt);"><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Erstellt</td><td>${d.erstellt || '—'}</td></tr>
+        <tr><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Geändert</td><td>${d.geaendert || '—'}</td></tr>
+        <tr style="background:var(--mc-bg-alt);"><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Erzeuger</td><td>${d.erzeuger || '—'}</td></tr>
+        <tr><td style="padding:.4rem .6rem;color:var(--mc-text-muted);">Produzent</td><td>${d.produzent || '—'}</td></tr>
+    </table>`;
+}
+</script>
+}
