@@ -68,6 +68,13 @@ a:hover { color: var(--mc-petrol-dark); }
 }
 .mc-theme-toggle:hover { border-color: var(--mc-petrol); color: var(--mc-petrol); }
 
+.mc-version-tag {
+    background: var(--mc-petrol); color: #fff;
+    font-family: 'Roboto', sans-serif; font-size: .7rem; font-weight: 600;
+    letter-spacing: .05em; padding: .2rem .55rem; border-radius: 999px;
+    line-height: 1.2; user-select: none;
+}
+
 .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
 
 .tool-card {
