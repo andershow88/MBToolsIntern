@@ -29,6 +29,7 @@
             <div><div class="tool-name">PDF-Informationen</div><div class="tool-desc">Metadaten anzeigen: Seitenanzahl, Autor, Erstelldatum, Dateigröße</div></div>
         </div>
     </div>
+    <div class="panel-holder" id="holder-pdf"></div>
 </section>
 
 <!-- ═══ MerkurTools — Übersetzungen ═══ -->
@@ -40,6 +41,7 @@
             <div><div class="tool-name">Übersetzen (DeepL)</div><div class="tool-desc">Texte oder Dokumente in 30+ Sprachen — Layout bleibt erhalten</div></div>
         </div>
     </div>
+    <div class="panel-holder" id="holder-uebersetzen"></div>
 </section>
 
 <!-- ═══ MerkurTools — Testzwecke / Spielwiese ═══ -->
@@ -52,6 +54,7 @@
             <div><div class="tool-name">Text aus Scan / Handschrift</div><div class="tool-desc">OCR für eingescannte PDFs — Druckschrift mässig, Handschrift fast nicht zu gebrauchen</div></div>
         </div>
     </div>
+    <div class="panel-holder" id="holder-spielwiese"></div>
 </section>
 
 <!-- PDF verschlüsseln -->
@@ -269,13 +272,33 @@
 // Globale Tool-Verwaltung
 let _aktivesTool = null;
 const ALLE_TOOLS = ['encrypt','convert','text','ocr','translate','split','merge','info'];
+const TOOL_ZU_HOLDER = {
+    encrypt: 'holder-pdf', convert: 'holder-pdf', text: 'holder-pdf',
+    split:   'holder-pdf', merge:   'holder-pdf', info:  'holder-pdf',
+    translate: 'holder-uebersetzen',
+    ocr:       'holder-spielwiese'
+};
 
 function toolOeffnen(id) {
+    // Toggle: gleiche Kachel erneut geklickt → schliessen
+    if (_aktivesTool === id) { toolSchliessen(id); return; }
     if (_aktivesTool && _aktivesTool !== id) toolSchliessen(_aktivesTool);
+
     const panel = document.getElementById('panel-' + id);
     if (!panel) return;
+
+    // Panel in den Holder des passenden Abschnitts verschieben (direkt unter Kacheln)
+    const holderId = TOOL_ZU_HOLDER[id];
+    const holder = holderId ? document.getElementById(holderId) : null;
+    if (holder && panel.parentElement !== holder) holder.appendChild(panel);
+
     panel.style.display = '';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // sanftes Scroll: zeige den Beginn des Panels — hinter der fixen Topbar
+    setTimeout(() => {
+        const topbarH = document.querySelector('.mc-topbar')?.offsetHeight || 64;
+        const y = panel.getBoundingClientRect().top + window.pageYOffset - topbarH - 12;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+    }, 30);
     _aktivesTool = id;
 }
 function toolSchliessen(id) {

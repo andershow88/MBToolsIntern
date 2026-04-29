@@ -77,6 +77,10 @@ a:hover { color: var(--mc-petrol-dark); }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+.panel-holder { margin-top: 1.25rem; }
+.panel-holder:empty { display: none; }
+.panel-holder > .mc-section { margin-bottom: 0; }
+
 /* ── Übersetzen-Kachel ───────────────────────────────────────────── */
 .tr-select {
     padding: .45rem .6rem; border: 1px solid var(--mc-border);
