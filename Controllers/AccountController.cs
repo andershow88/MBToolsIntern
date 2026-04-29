@@ -61,7 +61,15 @@ public class AccountController : Controller
                 using var user = UserPrincipal.FindByIdentity(ctx, model.Benutzername);
                 if (user != null)
                 {
-                    anzeigeName = user.DisplayName ?? user.Name ?? model.Benutzername;
+                    var vorname = (user.GivenName ?? string.Empty).Trim();
+                    var nachname = (user.Surname ?? string.Empty).Trim();
+                    var vollName = $"{vorname} {nachname}".Trim();
+                    if (!string.IsNullOrWhiteSpace(vollName))
+                        anzeigeName = vollName;
+                    else if (!string.IsNullOrWhiteSpace(user.DisplayName))
+                        anzeigeName = user.DisplayName;
+                    else if (!string.IsNullOrWhiteSpace(user.Name))
+                        anzeigeName = user.Name;
                     email = user.EmailAddress ?? string.Empty;
                 }
             }
