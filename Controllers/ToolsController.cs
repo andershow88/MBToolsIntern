@@ -232,7 +232,7 @@ public class ToolsController : Controller
     // ── PDF verschlüsseln (AES-256, Random-Passwort) ────────────────────
     [HttpPost]
     [RequestSizeLimit(100_000_000)]
-    public async Task<IActionResult> PdfEncrypt(IFormFile datei)
+    public async Task<IActionResult> PdfEncrypt(IFormFile datei, string? passwort = null)
     {
         if (datei == null || datei.Length == 0)
             return Json(new { error = "Keine Datei." });
@@ -256,7 +256,7 @@ public class ToolsController : Controller
                 return Json(new { error = "PDF konnte nicht geöffnet werden. Möglicherweise ist sie bereits passwortgeschützt oder beschädigt." });
             }
 
-            var passwort = GenerateSecurePassword(16);
+            passwort = string.IsNullOrEmpty(passwort) ? GenerateSecurePassword(16) : passwort;
 
             var sec = document.SecuritySettings;
             sec.OwnerPassword = passwort;

@@ -152,13 +152,14 @@ function encryptReset() {
     const f = document.getElementById('encryptFile'); if (f) f.value = '';
     const r = document.getElementById('encryptResult');
     if (r) { r.innerHTML = ''; r.style.display = 'none'; }
-    encryptBlob = null; encryptName = '';
+    encryptBlob = null; encryptName = ''; encryptOriginalFile = null;
 }
 
 // Download-Cache pro Tool — wird vom Speichern-Dialog gelesen
 let mergeBlob = null;
 let convertBlob = null, convertName = '';
 let encryptBlob = null, encryptName = '';
+let encryptOriginalFile = null;
 
 function formatSize(b) { return b < 1024*1024 ? (b/1024).toFixed(0) + ' KB' : (b/1024/1024).toFixed(1) + ' MB'; }
 
@@ -265,13 +266,15 @@ async function convertStart(f) {
 }
 
 // ═══ PDF verschlüsseln ═══
-async function encryptStart(f) {
+async function encryptStart(f, eigenesPasswort) {
     if (!f) return;
     if (!f.name.toLowerCase().endsWith('.pdf')) { mcAlert('Bitte eine PDF-Datei auswählen.', { variante: 'warn', icon: 'bi-file-earmark-pdf' }); return; }
+    encryptOriginalFile = f;
     const res = document.getElementById('encryptResult');
     res.style.display = 'block';
     res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem;"><i class="bi bi-hourglass-split" style="color:var(--mc-petrol);"></i> <span>${f.name} wird verschlüsselt...</span></div>`;
     const fd = new FormData(); fd.append('datei', f);
+    if (eigenesPasswort) fd.append('passwort', eigenesPasswort);
     try {
         const r = await fetch('/api/PdfEncrypt', { method: 'POST', body: fd });
         const d = await r.json();
@@ -284,7 +287,7 @@ async function encryptStart(f) {
         encryptBlob = new Blob([bytes], { type: 'application/pdf' });
         encryptName = d.dateiname;
 
-        const pwSafe = d.passwort.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const pwSafe = d.passwort.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         res.innerHTML = `
             <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;">
                 <i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i>
@@ -298,13 +301,16 @@ async function encryptStart(f) {
                 <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:var(--mc-danger);font-weight:600;font-size:.9rem;">
                     <i class="bi bi-key-fill"></i> Passwort (wird nur jetzt einmal angezeigt!)
                 </div>
-                <div style="display:flex;gap:.5rem;align-items:center;">
+                <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
                     <input id="encryptPwd" type="text" readonly value="${pwSafe}" onclick="this.select()"
-                        style="flex:1;font-family:'Courier New',monospace;font-size:1.15rem;font-weight:600;letter-spacing:1px;padding:.6rem .8rem;border:1px solid var(--mc-border);border-radius:var(--mc-radius-sm);background:var(--mc-bg-card);color:var(--mc-text-dark);" />
+                        style="flex:1;min-width:220px;font-family:'Courier New',monospace;font-size:1.15rem;font-weight:600;letter-spacing:1px;padding:.6rem .8rem;border:1px solid var(--mc-border);border-radius:var(--mc-radius-sm);background:var(--mc-bg-card);color:var(--mc-text-dark);outline:none;" />
                     <button class="btn-mc btn-mc-primary" id="encryptCopyBtn" onclick="encryptCopy()"><i class="bi bi-clipboard"></i> Kopieren</button>
+                    <button class="btn-mc btn-mc-outline" id="encryptChangeBtn" onclick="encryptPasswortBearbeiten()"><i class="bi bi-pencil"></i> Ändern</button>
+                    <button class="btn-mc btn-mc-filled" id="encryptApplyBtn" onclick="encryptPasswortAnwenden()" style="display:none;"><i class="bi bi-check2"></i> Übernehmen</button>
+                    <button class="btn-mc btn-mc-outline" id="encryptCancelBtn" onclick="encryptPasswortAbbrechen()" style="display:none;"><i class="bi bi-x"></i> Abbrechen</button>
                 </div>
                 <div style="font-size:.75rem;color:var(--mc-text-muted);margin-top:.6rem;">
-                    <i class="bi bi-info-circle"></i> Speichere das Passwort sicher und sende es getrennt vom PDF (z.B. SMS / anderer Kanal als E-Mail).
+                    <i class="bi bi-info-circle"></i> Speichere das Passwort sicher und sende es getrennt vom PDF (z. B. SMS / anderer Kanal als E-Mail). Über <strong>Ändern</strong> kannst du das Passwort durch ein eigenes ersetzen — die PDF wird dann mit dem neuen Passwort neu verschlüsselt.
                 </div>
             </div>`;
         document.getElementById('encryptFile').value = '';
@@ -325,6 +331,75 @@ async function encryptCopy() {
         inp.select(); document.execCommand('copy');
         btn.innerHTML = '<i class="bi bi-check"></i> Kopiert';
         setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Kopieren'; }, 2000);
+    }
+}
+
+let _pwdAlt = null;
+function encryptPasswortBearbeiten() {
+    const inp = document.getElementById('encryptPwd');
+    if (!inp) return;
+    _pwdAlt = inp.value;
+    inp.readOnly = false;
+    inp.style.borderColor = 'var(--mc-petrol)';
+    inp.focus(); inp.select();
+    document.getElementById('encryptCopyBtn').style.display = 'none';
+    document.getElementById('encryptChangeBtn').style.display = 'none';
+    document.getElementById('encryptApplyBtn').style.display = '';
+    document.getElementById('encryptCancelBtn').style.display = '';
+}
+
+function encryptPasswortAbbrechen() {
+    const inp = document.getElementById('encryptPwd');
+    if (!inp) return;
+    if (_pwdAlt !== null) inp.value = _pwdAlt;
+    inp.readOnly = true;
+    inp.style.borderColor = 'var(--mc-border)';
+    document.getElementById('encryptCopyBtn').style.display = '';
+    document.getElementById('encryptChangeBtn').style.display = '';
+    document.getElementById('encryptApplyBtn').style.display = 'none';
+    document.getElementById('encryptCancelBtn').style.display = 'none';
+    _pwdAlt = null;
+}
+
+async function encryptPasswortAnwenden() {
+    if (!encryptOriginalFile) { mcError('Originaldatei nicht mehr verfügbar — bitte PDF erneut hochladen.'); return; }
+    const inp = document.getElementById('encryptPwd');
+    const neu = inp ? inp.value : '';
+    if (!neu) { mcAlert('Bitte ein Passwort eingeben.', { variante: 'warn', icon: 'bi-key' }); return; }
+
+    const btnAnwenden = document.getElementById('encryptApplyBtn');
+    const btnAbbrechen = document.getElementById('encryptCancelBtn');
+    btnAnwenden.disabled = true; btnAbbrechen.disabled = true;
+    const altText = btnAnwenden.innerHTML;
+    btnAnwenden.innerHTML = '<i class="bi bi-hourglass-split"></i> Übernehmen…';
+
+    try {
+        const fd = new FormData();
+        fd.append('datei', encryptOriginalFile);
+        fd.append('passwort', neu);
+        const r = await fetch('/api/PdfEncrypt', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) { mcError(d.error); return; }
+
+        const bin = atob(d.data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        encryptBlob = new Blob([bytes], { type: 'application/pdf' });
+        encryptName = d.dateiname;
+
+        inp.readOnly = true;
+        inp.style.borderColor = 'var(--mc-success)';
+        document.getElementById('encryptCopyBtn').style.display = '';
+        document.getElementById('encryptChangeBtn').style.display = '';
+        btnAnwenden.style.display = 'none';
+        btnAbbrechen.style.display = 'none';
+        _pwdAlt = null;
+        setTimeout(function(){ inp.style.borderColor = 'var(--mc-border)'; }, 1500);
+    } catch (e) {
+        mcError('Aktualisierung fehlgeschlagen: ' + (e.message || e.name));
+    } finally {
+        btnAnwenden.disabled = false; btnAbbrechen.disabled = false;
+        btnAnwenden.innerHTML = altText;
     }
 }
 
