@@ -21,6 +21,10 @@
             <div class="tool-icon" style="background:#39747A;"><i class="bi bi-fonts"></i></div>
             <div><div class="tool-name">Text aus Scan / Handschrift</div><div class="tool-desc">OCR für eingescannte PDFs — erkennt gedruckten Text gut, Handschrift eingeschränkt</div></div>
         </div>
+        <div class="tool-card" onclick="toolOeffnen('translate')">
+            <div class="tool-icon" style="background:#5B6BC0;"><i class="bi bi-translate"></i></div>
+            <div><div class="tool-name">Übersetzen (DeepL)</div><div class="tool-desc">Texte oder Dokumente in 30+ Sprachen — Layout bleibt erhalten</div></div>
+        </div>
         <div class="tool-card" onclick="toolOeffnen('split')">
             <div class="tool-icon" style="background:var(--mc-gold);"><i class="bi bi-scissors"></i></div>
             <div><div class="tool-name">PDF aufteilen</div><div class="tool-desc">Seiten aus einem PDF extrahieren oder den Seitenbereich auswählen</div></div>
@@ -111,6 +115,77 @@
     </div>
 </section>
 
+<!-- Übersetzen (DeepL) -->
+<section class="mc-section" id="panel-translate" style="display:none;">
+    <div class="mc-section-title"><i class="bi bi-translate"></i> Übersetzen — DeepL <button onclick="toolSchliessen('translate')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-card" style="padding:0;">
+
+        <!-- Status-Banner: API-Key fehlt? -->
+        <div id="trStatus" style="display:none; padding:.85rem 1.25rem; border-bottom:1px solid var(--mc-border);"></div>
+
+        <!-- Sprachauswahl + Tabs -->
+        <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--mc-border); display:flex; align-items:center; gap:.75rem; flex-wrap:wrap;">
+            <select id="trQuelle" class="tr-select" style="min-width:180px;">
+                <option value="auto">Quelle: automatisch erkennen</option>
+            </select>
+            <button class="tr-swap" onclick="trSpracheTauschen()" title="Sprachen tauschen">
+                <i class="bi bi-arrow-left-right"></i>
+            </button>
+            <select id="trZiel" class="tr-select" style="min-width:180px;"></select>
+            <div style="flex:1;"></div>
+            <div id="trVerbrauch" style="font-size:.78rem; color:var(--mc-text-muted);"></div>
+        </div>
+
+        <!-- Tab-Switch -->
+        <div style="display:flex; gap:0; border-bottom:1px solid var(--mc-border);">
+            <button class="tr-tab tr-tab-aktiv" id="trTabText" onclick="trTabWechseln('text')"><i class="bi bi-fonts"></i> Text</button>
+            <button class="tr-tab" id="trTabFile" onclick="trTabWechseln('file')"><i class="bi bi-file-earmark-text"></i> Dokument</button>
+        </div>
+
+        <!-- Text-Modus -->
+        <div id="trBereichText" style="padding:1rem 1.25rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div>
+                <label style="font-size:.78rem; color:var(--mc-text-muted); display:block; margin-bottom:.35rem;">Originaltext</label>
+                <textarea id="trEingabe" rows="9" placeholder="Text hier einfügen…"
+                    oninput="trZeichenZaehlen()"
+                    style="width:100%; padding:.6rem .8rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; font-family:inherit; line-height:1.5; background:var(--mc-bg-card); color:var(--mc-text-dark); resize:vertical; outline:none; min-height:160px;"
+                    onfocus="this.style.borderColor='var(--mc-petrol)'" onblur="this.style.borderColor='var(--mc-border)'"></textarea>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:.4rem; gap:.5rem;">
+                    <span id="trZeichen" style="font-size:.72rem; color:var(--mc-text-muted);">0 Zeichen</span>
+                    <button class="btn-mc btn-mc-filled" id="trBtnText" onclick="trTextUebersetzen()" style="font-size:.82rem;"><i class="bi bi-translate"></i> Übersetzen</button>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:.78rem; color:var(--mc-text-muted); display:block; margin-bottom:.35rem;">Übersetzung</label>
+                <textarea id="trAusgabe" rows="9" readonly placeholder="Ergebnis erscheint hier…"
+                    style="width:100%; padding:.6rem .8rem; border:1px solid var(--mc-border); border-radius:var(--mc-radius-sm); font-size:.9rem; font-family:inherit; line-height:1.5; background:var(--mc-bg-alt); color:var(--mc-text-dark); resize:vertical; outline:none; min-height:160px;"></textarea>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:.4rem; gap:.5rem;">
+                    <span id="trErkannt" style="font-size:.72rem; color:var(--mc-text-muted);"></span>
+                    <button class="btn-mc btn-mc-primary" id="trBtnCopy" onclick="trKopieren()" style="font-size:.82rem;" disabled><i class="bi bi-clipboard"></i> Kopieren</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datei-Modus -->
+        <div id="trBereichFile" style="padding:1rem 1.25rem; display:none;">
+            <div class="upload-zone" onclick="document.getElementById('trDatei').click()"
+                 ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
+                 ondrop="event.preventDefault();this.classList.remove('dragover');trDateiSetzen(event.dataTransfer.files[0])">
+                <i class="bi bi-file-earmark-text" style="font-size:2.5rem; color:#5B6BC0;"></i>
+                <div style="margin-top:.5rem; color:var(--mc-text-muted);">Dokument hierher ziehen oder klicken</div>
+                <div style="font-size:.75rem; color:var(--mc-text-muted); margin-top:.35rem;">.docx · .pptx · .xlsx · .pdf · .html · .txt · .srt · .xlf</div>
+                <input type="file" id="trDatei" accept=".docx,.pptx,.xlsx,.pdf,.html,.htm,.txt,.srt,.xlf,.xliff" style="display:none;" onchange="trDateiSetzen(this.files[0])" />
+            </div>
+            <div id="trDateiInfo" style="display:none; margin-top:1rem;">
+                <div id="trDateiName" style="font-weight:600; margin-bottom:.75rem;"></div>
+                <button class="btn-mc btn-mc-filled" id="trBtnFile" onclick="trDateiUebersetzen()" style="font-size:.82rem;"><i class="bi bi-translate"></i> Dokument übersetzen</button>
+                <button class="btn-mc btn-mc-outline" onclick="trDateiLeeren()" style="font-size:.82rem;"><i class="bi bi-x"></i> Entfernen</button>
+            </div>
+            <div class="result-card" id="trDateiResult"></div>
+        </div>
+    </div>
+</section>
+
 <!-- OCR / Handschrift -->
 <section class="mc-section" id="panel-ocr" style="display:none;">
     <div class="mc-section-title"><i class="bi bi-fonts"></i> Text aus Scan / Handschrift <button onclick="toolSchliessen('ocr')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
@@ -162,7 +237,7 @@
 <script>
 // Globale Tool-Verwaltung
 let _aktivesTool = null;
-const ALLE_TOOLS = ['encrypt','convert','text','ocr','split','merge','info'];
+const ALLE_TOOLS = ['encrypt','convert','text','ocr','translate','split','merge','info'];
 
 function toolOeffnen(id) {
     if (_aktivesTool && _aktivesTool !== id) toolSchliessen(_aktivesTool);
@@ -180,13 +255,14 @@ function toolSchliessen(id) {
 }
 function toolReset(id) {
     switch (id) {
-        case 'encrypt': encryptReset(); break;
-        case 'merge':   mergeReset();   break;
-        case 'split':   splitReset();   break;
-        case 'text':    textReset();    break;
-        case 'ocr':     ocrReset();     break;
-        case 'info':    infoReset();    break;
-        case 'convert': convertReset(); break;
+        case 'encrypt':   encryptReset();   break;
+        case 'merge':     mergeReset();     break;
+        case 'split':     splitReset();     break;
+        case 'text':      textReset();      break;
+        case 'ocr':       ocrReset();       break;
+        case 'translate': translateReset(); break;
+        case 'info':      infoReset();      break;
+        case 'convert':   convertReset();   break;
     }
 }
 
@@ -343,6 +419,209 @@ async function convertStart(f) {
         }
     } catch { res.innerHTML = '<div style="color:var(--mc-danger);">Verbindungsfehler</div>'; }
 }
+
+// ═══ Übersetzen (DeepL) ═══
+const TR_SPRACHEN_QUELLE = [
+    { code: 'AUTO', name: 'automatisch erkennen' },
+    { code: 'DE', name: 'Deutsch' }, { code: 'EN', name: 'Englisch' },
+    { code: 'FR', name: 'Französisch' }, { code: 'IT', name: 'Italienisch' },
+    { code: 'ES', name: 'Spanisch' }, { code: 'PT', name: 'Portugiesisch' },
+    { code: 'NL', name: 'Niederländisch' }, { code: 'PL', name: 'Polnisch' },
+    { code: 'CS', name: 'Tschechisch' }, { code: 'DA', name: 'Dänisch' },
+    { code: 'EL', name: 'Griechisch' }, { code: 'FI', name: 'Finnisch' },
+    { code: 'HU', name: 'Ungarisch' }, { code: 'JA', name: 'Japanisch' },
+    { code: 'KO', name: 'Koreanisch' }, { code: 'NB', name: 'Norwegisch' },
+    { code: 'RO', name: 'Rumänisch' }, { code: 'RU', name: 'Russisch' },
+    { code: 'SK', name: 'Slowakisch' }, { code: 'SL', name: 'Slowenisch' },
+    { code: 'SV', name: 'Schwedisch' }, { code: 'TR', name: 'Türkisch' },
+    { code: 'UK', name: 'Ukrainisch' }, { code: 'BG', name: 'Bulgarisch' },
+    { code: 'AR', name: 'Arabisch' }, { code: 'ZH', name: 'Chinesisch' },
+    { code: 'ID', name: 'Indonesisch' }, { code: 'ET', name: 'Estnisch' },
+    { code: 'LT', name: 'Litauisch' }, { code: 'LV', name: 'Lettisch' }
+];
+const TR_SPRACHEN_ZIEL = [
+    { code: 'EN-US', name: 'Englisch (US)' }, { code: 'EN-GB', name: 'Englisch (UK)' },
+    { code: 'DE', name: 'Deutsch' }, { code: 'FR', name: 'Französisch' },
+    { code: 'IT', name: 'Italienisch' }, { code: 'ES', name: 'Spanisch' },
+    { code: 'PT-PT', name: 'Portugiesisch (PT)' }, { code: 'PT-BR', name: 'Portugiesisch (BR)' },
+    { code: 'NL', name: 'Niederländisch' }, { code: 'PL', name: 'Polnisch' },
+    { code: 'CS', name: 'Tschechisch' }, { code: 'DA', name: 'Dänisch' },
+    { code: 'EL', name: 'Griechisch' }, { code: 'FI', name: 'Finnisch' },
+    { code: 'HU', name: 'Ungarisch' }, { code: 'JA', name: 'Japanisch' },
+    { code: 'KO', name: 'Koreanisch' }, { code: 'NB', name: 'Norwegisch' },
+    { code: 'RO', name: 'Rumänisch' }, { code: 'RU', name: 'Russisch' },
+    { code: 'SK', name: 'Slowakisch' }, { code: 'SL', name: 'Slowenisch' },
+    { code: 'SV', name: 'Schwedisch' }, { code: 'TR', name: 'Türkisch' },
+    { code: 'UK', name: 'Ukrainisch' }, { code: 'BG', name: 'Bulgarisch' },
+    { code: 'AR', name: 'Arabisch' }, { code: 'ZH-HANS', name: 'Chinesisch (vereinfacht)' },
+    { code: 'ID', name: 'Indonesisch' }, { code: 'ET', name: 'Estnisch' },
+    { code: 'LT', name: 'Litauisch' }, { code: 'LV', name: 'Lettisch' }
+];
+let trDatei = null;
+let trDateiBlob = null, trDateiName = '';
+
+function trInit() {
+    const q = document.getElementById('trQuelle'); if (!q) return;
+    q.innerHTML = TR_SPRACHEN_QUELLE.map(s => `<option value="${s.code}">${s.code === 'AUTO' ? '🌐 ' + s.name : s.name + ' (' + s.code + ')'}</option>`).join('');
+    const z = document.getElementById('trZiel');
+    z.innerHTML = TR_SPRACHEN_ZIEL.map(s => `<option value="${s.code}">${s.name}</option>`).join('');
+    const gemerktQ = localStorage.getItem('mc-tr-quelle'); if (gemerktQ) q.value = gemerktQ;
+    const gemerktZ = localStorage.getItem('mc-tr-ziel') || 'EN-US'; z.value = gemerktZ;
+    q.onchange = () => localStorage.setItem('mc-tr-quelle', q.value);
+    z.onchange = () => localStorage.setItem('mc-tr-ziel', z.value);
+    trStatusLaden();
+}
+
+async function trStatusLaden() {
+    const banner = document.getElementById('trStatus');
+    const verbrauch = document.getElementById('trVerbrauch');
+    try {
+        const r = await fetch('/api/DeeplStatus');
+        const d = await r.json();
+        if (!d.konfiguriert) {
+            banner.style.display = 'block';
+            banner.style.background = 'rgba(222,98,80,.08)';
+            banner.style.color = 'var(--mc-warning)';
+            banner.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> <strong>DeepL-API noch nicht konfiguriert.</strong> Hinterlege deinen API-Key in <code style="background:rgba(0,0,0,.04);padding:.05rem .3rem;border-radius:3px;">appsettings.json</code> (Feld <code style="background:rgba(0,0,0,.04);padding:.05rem .3rem;border-radius:3px;">DeepLApiKey</code>) oder als Umgebungsvariable <code style="background:rgba(0,0,0,.04);padding:.05rem .3rem;border-radius:3px;">DEEPL_API_KEY</code>, dann App-Pool neu starten.';
+            verbrauch.innerHTML = '';
+            return false;
+        }
+        banner.style.display = 'none';
+        if (d.fehler) {
+            verbrauch.innerHTML = '<i class="bi bi-exclamation-triangle" style="color:var(--mc-danger);"></i> ' + d.fehler;
+            return true;
+        }
+        const v = d.verbraucht.toLocaleString('de-DE');
+        const l = d.limit ? d.limit.toLocaleString('de-DE') : '∞';
+        const farbe = d.prozent > 90 ? 'var(--mc-danger)' : d.prozent > 75 ? 'var(--mc-warning)' : 'var(--mc-text-muted)';
+        verbrauch.innerHTML = `<i class="bi bi-bar-chart"></i> <span style="color:${farbe};">${v} / ${l}</span> Zeichen (${d.prozent}%)`;
+        return true;
+    } catch (e) {
+        banner.style.display = 'block';
+        banner.style.background = 'rgba(167,12,35,.08)'; banner.style.color = 'var(--mc-danger)';
+        banner.innerHTML = '<i class="bi bi-x-circle"></i> Status-Abfrage fehlgeschlagen.';
+        return false;
+    }
+}
+
+function trSpracheTauschen() {
+    const q = document.getElementById('trQuelle'); const z = document.getElementById('trZiel');
+    if (q.value === 'AUTO') return;
+    const qBase = q.value.split('-')[0]; const zBase = z.value.split('-')[0];
+    if ([...z.options].some(o => o.value === q.value)) z.value = q.value;
+    else if ([...z.options].some(o => o.value.startsWith(qBase))) z.value = [...z.options].find(o => o.value.startsWith(qBase)).value;
+    if ([...q.options].some(o => o.value === zBase)) q.value = zBase;
+    localStorage.setItem('mc-tr-quelle', q.value);
+    localStorage.setItem('mc-tr-ziel', z.value);
+    const e = document.getElementById('trEingabe').value; const a = document.getElementById('trAusgabe').value;
+    document.getElementById('trEingabe').value = a; document.getElementById('trAusgabe').value = e;
+    trZeichenZaehlen();
+}
+
+function trTabWechseln(modus) {
+    document.getElementById('trTabText').classList.toggle('tr-tab-aktiv', modus === 'text');
+    document.getElementById('trTabFile').classList.toggle('tr-tab-aktiv', modus === 'file');
+    document.getElementById('trBereichText').style.display = modus === 'text' ? 'grid' : 'none';
+    document.getElementById('trBereichFile').style.display = modus === 'file' ? 'block' : 'none';
+}
+
+function trZeichenZaehlen() {
+    const t = document.getElementById('trEingabe').value || '';
+    document.getElementById('trZeichen').textContent = t.length.toLocaleString('de-DE') + ' Zeichen';
+}
+
+async function trTextUebersetzen() {
+    const text = document.getElementById('trEingabe').value.trim();
+    if (!text) { mcAlert('Bitte einen Text eingeben.', { variante: 'warn', icon: 'bi-fonts' }); return; }
+    const ziel = document.getElementById('trZiel').value;
+    const quelle = document.getElementById('trQuelle').value;
+    const btn = document.getElementById('trBtnText');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Übersetze…';
+    document.getElementById('trAusgabe').value = '';
+    document.getElementById('trErkannt').textContent = '';
+    try {
+        const fd = new FormData();
+        fd.append('text', text); fd.append('ziel', ziel); fd.append('quelle', quelle);
+        const r = await fetch('/api/Translate', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) { mcError(d.error); return; }
+        document.getElementById('trAusgabe').value = d.text;
+        document.getElementById('trBtnCopy').disabled = false;
+        if (d.erkannteSprache) document.getElementById('trErkannt').textContent = 'Erkannt: ' + d.erkannteSprache;
+        trStatusLaden();
+    } catch (e) {
+        mcError('Verbindungsfehler bei der Übersetzung.');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-translate"></i> Übersetzen';
+    }
+}
+
+async function trKopieren() {
+    const a = document.getElementById('trAusgabe'); const btn = document.getElementById('trBtnCopy');
+    if (!a.value) return;
+    try { await navigator.clipboard.writeText(a.value); }
+    catch { a.select(); document.execCommand('copy'); }
+    btn.innerHTML = '<i class="bi bi-check"></i> Kopiert';
+    setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Kopieren'; }, 2000);
+}
+
+function trDateiSetzen(f) {
+    if (!f) return;
+    trDatei = f;
+    document.getElementById('trDateiName').innerHTML = `<i class="bi bi-file-earmark-text" style="color:#5B6BC0;"></i> <strong>${f.name}</strong> <span style="color:var(--mc-text-muted);">(${(f.size/1024).toFixed(0)} KB)</span>`;
+    document.getElementById('trDateiInfo').style.display = 'block';
+    document.getElementById('trDateiResult').style.display = 'none';
+}
+
+function trDateiLeeren() {
+    trDatei = null; trDateiBlob = null; trDateiName = '';
+    document.getElementById('trDatei').value = '';
+    document.getElementById('trDateiInfo').style.display = 'none';
+    const r = document.getElementById('trDateiResult'); r.innerHTML = ''; r.style.display = 'none';
+}
+
+async function trDateiUebersetzen() {
+    if (!trDatei) return;
+    const ziel = document.getElementById('trZiel').value;
+    const quelle = document.getElementById('trQuelle').value;
+    const btn = document.getElementById('trBtnFile');
+    const res = document.getElementById('trDateiResult');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Übersetze… (kann 30 s+ dauern)';
+    res.style.display = 'block';
+    res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;color:var(--mc-text-muted);"><div style="width:18px;height:18px;border:2px solid var(--mc-border);border-top-color:var(--mc-petrol);border-radius:50%;animation:spin .8s linear infinite;"></div> Dokument wird an DeepL gesendet…</div>`;
+    try {
+        const fd = new FormData();
+        fd.append('datei', trDatei); fd.append('ziel', ziel); fd.append('quelle', quelle);
+        const r = await fetch('/api/TranslateDocument', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) { res.innerHTML = `<div style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> ${d.error}</div>`; return; }
+        const bin = atob(d.data); const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        trDateiBlob = new Blob([bytes]); trDateiName = d.dateiname;
+        res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i>
+            <div><strong>${d.dateiname}</strong> · ${(d.groesse/1024).toFixed(0)} KB</div>
+            <button class="btn-mc btn-mc-filled" onclick="mcSpeichern(trDateiBlob, trDateiName)" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button>
+        </div>`;
+        trStatusLaden();
+    } catch (e) {
+        res.innerHTML = '<div style="color:var(--mc-danger);">Verbindungsfehler bei der Übersetzung.</div>';
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-translate"></i> Dokument übersetzen';
+    }
+}
+
+function translateReset() {
+    document.getElementById('trEingabe').value = '';
+    document.getElementById('trAusgabe').value = '';
+    document.getElementById('trErkannt').textContent = '';
+    document.getElementById('trBtnCopy').disabled = true;
+    trZeichenZaehlen();
+    trDateiLeeren();
+    trTabWechseln('text');
+}
+
+document.addEventListener('DOMContentLoaded', trInit);
 
 // ═══ OCR / Handschrift ═══
 async function ocrStart(f) {

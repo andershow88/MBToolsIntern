@@ -77,6 +77,32 @@ a:hover { color: var(--mc-petrol-dark); }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* ── Übersetzen-Kachel ───────────────────────────────────────────── */
+.tr-select {
+    padding: .45rem .6rem; border: 1px solid var(--mc-border);
+    border-radius: var(--mc-radius-sm); background: var(--mc-bg-card);
+    color: var(--mc-text-dark); font-size: .85rem; font-family: inherit;
+    cursor: pointer; outline: none; transition: border-color .2s;
+}
+.tr-select:hover, .tr-select:focus { border-color: var(--mc-petrol); }
+.tr-swap {
+    width: 34px; height: 34px; border: 1px solid var(--mc-border);
+    border-radius: 50%; background: var(--mc-bg-card); color: var(--mc-petrol);
+    cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center;
+}
+.tr-swap:hover { background: var(--mc-petrol); color: #fff; transform: rotate(180deg); }
+.tr-tab {
+    flex: 1; padding: .65rem 1rem; background: transparent; border: none;
+    border-bottom: 2px solid transparent; color: var(--mc-text-muted);
+    font-family: inherit; font-size: .88rem; cursor: pointer; transition: all .2s;
+}
+.tr-tab:hover { color: var(--mc-petrol); }
+.tr-tab-aktiv { color: var(--mc-petrol); border-bottom-color: var(--mc-petrol); font-weight: 600; }
+
+@media (max-width: 720px) {
+    #trBereichText { grid-template-columns: 1fr !important; }
+}
+
 .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
 
 .tool-card {

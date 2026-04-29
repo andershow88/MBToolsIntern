@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using DeepL;
 using Microsoft.AspNetCore.Mvc;
 using PDFtoImage;
 using SkiaSharp;
@@ -384,6 +385,100 @@ public class ToolsController : Controller
         {
             _log.LogError(ex, "OCR fehlgeschlagen");
             return Json(new { error = "OCR fehlgeschlagen: " + ex.Message });
+        }
+    }
+
+    // ── Übersetzung (DeepL) ─────────────────────────────────────────────
+    private Translator? GetDeepL()
+    {
+        var key = Environment.GetEnvironmentVariable("DEEPL_API_KEY") ?? _config["DeepLApiKey"];
+        return string.IsNullOrWhiteSpace(key) ? null : new Translator(key);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DeeplStatus()
+    {
+        var dl = GetDeepL();
+        if (dl == null) return Json(new { konfiguriert = false });
+        try
+        {
+            var usage = await dl.GetUsageAsync();
+            var verbraucht = usage.Character?.Count ?? 0;
+            var limit = usage.Character?.Limit ?? 0;
+            return Json(new
+            {
+                konfiguriert = true,
+                verbraucht,
+                limit,
+                prozent = limit > 0 ? Math.Round(verbraucht * 100.0 / limit, 1) : 0
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { konfiguriert = true, fehler = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Translate(string text, string ziel, string? quelle = null)
+    {
+        var dl = GetDeepL();
+        if (dl == null) return Json(new { error = "DeepL ist nicht konfiguriert (kein API-Key in appsettings.json)." });
+        if (string.IsNullOrWhiteSpace(text)) return Json(new { error = "Kein Text zum Übersetzen." });
+        if (string.IsNullOrWhiteSpace(ziel)) return Json(new { error = "Bitte Zielsprache wählen." });
+
+        try
+        {
+            var quelleClean = string.IsNullOrWhiteSpace(quelle) || quelle.Equals("auto", StringComparison.OrdinalIgnoreCase) ? null : quelle;
+            var result = await dl.TranslateTextAsync(text, quelleClean, ziel);
+            return Json(new
+            {
+                text = result.Text,
+                erkannteSprache = result.DetectedSourceLanguageCode
+            });
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "DeepL-Textübersetzung fehlgeschlagen");
+            return Json(new { error = "Übersetzung fehlgeschlagen: " + ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [RequestSizeLimit(100_000_000)]
+    public async Task<IActionResult> TranslateDocument(IFormFile datei, string ziel, string? quelle = null)
+    {
+        var dl = GetDeepL();
+        if (dl == null) return Json(new { error = "DeepL ist nicht konfiguriert (kein API-Key in appsettings.json)." });
+        if (datei == null || datei.Length == 0) return Json(new { error = "Keine Datei." });
+
+        var ext = Path.GetExtension(datei.FileName).ToLowerInvariant();
+        var erlaubt = new[] { ".docx", ".pptx", ".xlsx", ".pdf", ".html", ".htm", ".txt", ".srt", ".xlf", ".xliff" };
+        if (!Array.Exists(erlaubt, e => e == ext))
+            return Json(new { error = $"Dateityp {ext} wird von DeepL nicht unterstützt. Erlaubt: {string.Join(", ", erlaubt)}" });
+
+        try
+        {
+            using var input = new MemoryStream();
+            await datei.CopyToAsync(input);
+            input.Position = 0;
+
+            using var output = new MemoryStream();
+            var quelleClean = string.IsNullOrWhiteSpace(quelle) || quelle.Equals("auto", StringComparison.OrdinalIgnoreCase) ? null : quelle;
+            await dl.TranslateDocumentAsync(input, datei.FileName, output, quelleClean, ziel);
+
+            var name = Path.GetFileNameWithoutExtension(datei.FileName) + "_" + ziel.Replace("-", "").ToLowerInvariant() + ext;
+            return Json(new
+            {
+                data = Convert.ToBase64String(output.ToArray()),
+                dateiname = name,
+                groesse = output.Length
+            });
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "DeepL-Dokumentübersetzung fehlgeschlagen");
+            return Json(new { error = "Dokument-Übersetzung fehlgeschlagen: " + ex.Message });
         }
     }
 }
