@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,10 +25,7 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
-builder.Services.AddControllersWithViews(options =>
-{
-    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
-});
+builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 
 var port = Environment.GetEnvironmentVariable("PORT");
