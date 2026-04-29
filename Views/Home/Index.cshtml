@@ -1023,16 +1023,32 @@ async function trStatusLaden() {
         const d = await r.json();
         if (!d.konfiguriert) {
             banner.style.display = 'flex';
-            banner.style.background = 'rgba(91,107,192,.1)';
-            banner.style.color = 'var(--mc-text-dark)';
-            const apiName = _trModus === 'free' ? 'Test-API' : 'Pro-API';
-            const bereichName = _trModus === 'free' ? 'Test-Bereich' : 'Pro-Bereich';
-            banner.innerHTML = `<i class="bi bi-info-circle-fill" style="color:#5B6BC0;"></i><div><strong>${apiName} noch nicht konfiguriert.</strong> Sobald ein API-Schlüssel hinterlegt ist, kann der ${bereichName} genutzt werden.</div>`;
+            banner.style.background = '';
+            banner.style.color = '';
+            banner.classList.add('tr-banner-rot');
+            banner.classList.toggle('tr-banner-pro', _trModus === 'pro');
+            if (_trModus === 'free') {
+                banner.innerHTML = `
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>
+                        <div class="tr-banner-titel">Test-API noch nicht konfiguriert</div>
+                        <div>Sobald ein API-Schlüssel hinterlegt ist, kann der Test-Bereich genutzt werden.</div>
+                    </div>`;
+            } else {
+                banner.innerHTML = `
+                    <span class="tr-pflicht-pill">PFLICHT BEACHTEN</span>
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>
+                        <div class="tr-banner-titel">Pro-API noch nicht konfiguriert</div>
+                        <div>Sobald ein API-Schlüssel hinterlegt ist, kann der Pro-Bereich genutzt werden.</div>
+                    </div>`;
+            }
             box.style.display = 'none';
             if (card) card.classList.add('tr-disabled');
             return false;
         }
         banner.style.display = 'none';
+        banner.classList.remove('tr-banner-rot', 'tr-banner-pro');
         if (card) card.classList.remove('tr-disabled');
         if (d.fehler) {
             box.style.display = 'block';

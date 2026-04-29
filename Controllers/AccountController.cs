@@ -58,19 +58,52 @@ public class AccountController : Controller
             string email = string.Empty;
             try
             {
-                using var user = UserPrincipal.FindByIdentity(ctx, model.Benutzername);
+                UserPrincipal? user = null;
+                var versuche = new[]
+                {
+                    model.Benutzername,
+                    model.Benutzername.Contains('\\') ? model.Benutzername.Split('\\').Last() : model.Benutzername,
+                    model.Benutzername.Contains('@') ? model.Benutzername.Split('@')[0] : model.Benutzername,
+                };
+                var idTypes = new[] { IdentityType.SamAccountName, IdentityType.UserPrincipalName, IdentityType.Name };
+
+                foreach (var v in versuche.Distinct())
+                {
+                    foreach (var t in idTypes)
+                    {
+                        try
+                        {
+                            user = UserPrincipal.FindByIdentity(ctx, t, v);
+                            if (user != null) { _log.LogInformation("AD-User gefunden via {Type} mit '{V}'", t, v); break; }
+                        }
+                        catch (Exception ex) { _log.LogDebug(ex, "FindByIdentity {T}/{V} fehlgeschlagen", t, v); }
+                    }
+                    if (user != null) break;
+                }
+
                 if (user != null)
                 {
                     var vorname = (user.GivenName ?? string.Empty).Trim();
                     var nachname = (user.Surname ?? string.Empty).Trim();
+                    var displayName = (user.DisplayName ?? string.Empty).Trim();
+                    var name = (user.Name ?? string.Empty).Trim();
+                    _log.LogInformation("AD-Felder fuer {User}: GivenName='{Given}', Surname='{Sur}', DisplayName='{DN}', Name='{N}', Mail='{M}'",
+                        model.Benutzername, vorname, nachname, displayName, name, user.EmailAddress);
+
                     var vollName = $"{vorname} {nachname}".Trim();
                     if (!string.IsNullOrWhiteSpace(vollName))
                         anzeigeName = vollName;
-                    else if (!string.IsNullOrWhiteSpace(user.DisplayName))
-                        anzeigeName = user.DisplayName;
-                    else if (!string.IsNullOrWhiteSpace(user.Name))
-                        anzeigeName = user.Name;
+                    else if (!string.IsNullOrWhiteSpace(displayName))
+                        anzeigeName = displayName;
+                    else if (!string.IsNullOrWhiteSpace(name))
+                        anzeigeName = name;
+
                     email = user.EmailAddress ?? string.Empty;
+                    user.Dispose();
+                }
+                else
+                {
+                    _log.LogWarning("AD-User '{User}' wurde mit keinem der Verfahren gefunden — User-ID bleibt als Anzeigename", model.Benutzername);
                 }
             }
             catch (Exception ex)
