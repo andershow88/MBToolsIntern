@@ -20,10 +20,22 @@
         <span>MBTools <small style="font-weight:400;color:var(--mc-text-muted);font-size:.75rem;">intern</small></span>
     </div>
     <div class="mc-topbar-right">
+        @if (User?.Identity?.IsAuthenticated == true)
+        {
+            var anzeige = User.Claims.FirstOrDefault(c => c.Type == "DisplayName")?.Value ?? User.Identity.Name ?? "";
+            var initialen = string.Join("", anzeige.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(t => t.Length > 0 ? t[0].ToString().ToUpper() : "")).PadRight(1);
+            <div class="mc-user-box" title="Angemeldet als @anzeige">
+                <div class="mc-user-avatar">@initialen</div>
+                <span class="mc-user-name">@anzeige</span>
+            </div>
+            <a class="mc-logout-btn" href="/Account/Logout" title="Abmelden">
+                <i class="bi bi-box-arrow-right"></i> Abmelden
+            </a>
+        }
         <button class="mc-theme-toggle" id="themeToggle" title="Dark/Light Mode">
             <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
         </button>
-        <span class="mc-version-tag" title="Aktive Version">V9</span>
+        <span class="mc-version-tag" title="Aktive Version">V10</span>
     </div>
 </nav>
 
