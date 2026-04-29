@@ -38,8 +38,7 @@ public class AccountController : Controller
         try
         {
             using var ctx = new PrincipalContext(ContextType.Domain, domain);
-            var ok = ctx.ValidateCredentials(model.Benutzername, model.Passwort,
-                ContextOptions.Negotiate | ContextOptions.SecureSocketLayer);
+            var ok = ctx.ValidateCredentials(model.Benutzername, model.Passwort);
 
             if (!ok)
             {
@@ -86,7 +85,8 @@ public class AccountController : Controller
         catch (Exception ex)
         {
             _log.LogError(ex, "AD-Anmeldung fehlgeschlagen");
-            ModelState.AddModelError(string.Empty, "Verzeichnisdienst ist aktuell nicht erreichbar. Bitte später erneut versuchen.");
+            var details = ex.GetBaseException().Message;
+            ModelState.AddModelError(string.Empty, $"Verzeichnisdienst ist aktuell nicht erreichbar: {details}");
             return View(model);
         }
     }
