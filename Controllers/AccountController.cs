@@ -35,6 +35,14 @@ public class AccountController : Controller
                      ?? _config["Auth:Domain"]
                      ?? "idfp.rz.bankenit.de";
 
+        // Dev-Bypass für lokales Testen ohne AD-Anbindung
+        var bypass = string.Equals(Environment.GetEnvironmentVariable("AUTH_BYPASS"), "true", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(_config["Auth:DevBypass"], "true", StringComparison.OrdinalIgnoreCase);
+        if (bypass)
+        {
+            return await LoginAbschliessen(model, model.Benutzername, model.Benutzername, string.Empty);
+        }
+
         try
         {
             using var ctx = new PrincipalContext(ContextType.Domain, domain);
@@ -62,25 +70,7 @@ public class AccountController : Controller
                 _log.LogWarning(ex, "User-Info konnte nicht gelesen werden");
             }
 
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.Name, model.Benutzername),
-                new("DisplayName", anzeigeName),
-                new(ClaimTypes.Email, email)
-            };
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = false,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                });
-
-            if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
-                return Redirect(model.ReturnUrl);
-            return RedirectToAction("Index", "Home");
+            return await LoginAbschliessen(model, model.Benutzername, anzeigeName, email);
         }
         catch (Exception ex)
         {
@@ -89,6 +79,29 @@ public class AccountController : Controller
             ModelState.AddModelError(string.Empty, $"Verzeichnisdienst ist aktuell nicht erreichbar: {details}");
             return View(model);
         }
+    }
+
+    private async Task<IActionResult> LoginAbschliessen(LoginViewModel model, string userId, string anzeigeName, string email)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Name, userId),
+            new("DisplayName", anzeigeName),
+            new(ClaimTypes.Email, email)
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            });
+
+        if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+            return Redirect(model.ReturnUrl);
+        return RedirectToAction("Index", "Home");
     }
 
     [HttpGet]

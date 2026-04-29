@@ -8,31 +8,26 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anmeldung — MBTools</title>
+    <title>Anmeldung — MerkurTools</title>
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&family=Roboto:wght@300;400;500;700&display=swap" />
     <link rel="stylesheet" href="~/css/merkur.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@@1.11.3/font/bootstrap-icons.min.css" />
-    <script>(function(){var t=localStorage.getItem('mc-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body class="login-body">
 
-<div class="login-bg"></div>
-
 <div class="login-frame">
     <div class="login-card">
-        <div class="login-brand">
-            <img src="~/images/merkur-logo.svg" alt="Merkur Privatbank" />
-            <div class="login-brand-text">
-                <div class="login-brand-title">MerkurTools</div>
-                <div class="login-brand-sub">Interne Werkzeuge der Merkur Privatbank</div>
-            </div>
+
+        <div class="login-logo-wrap">
+            <img src="~/images/merkur-logo.svg" alt="Merkur Privatbank" class="login-logo" />
+            <div class="login-brand-line">MerkurTools</div>
         </div>
 
         <h1 class="login-title">Anmeldung</h1>
-        <p class="login-hint">Bitte mit deinem Domänen-Benutzer anmelden.</p>
+        <div class="login-hint">Wie gewohnt mit Atruvia-Anmeldedaten.</div>
 
         <form asp-action="Login" method="post" class="login-form" autocomplete="off">
             <input type="hidden" asp-for="ReturnUrl" />
@@ -46,30 +41,24 @@
             }
 
             <div class="login-field">
-                <label asp-for="Benutzername"><i class="bi bi-person"></i> Benutzername</label>
-                <input asp-for="Benutzername" autocomplete="username" autofocus placeholder="z. B. yh04sau" />
+                <label asp-for="Benutzername">Benutzer-ID</label>
+                <input asp-for="Benutzername" autocomplete="username" autofocus placeholder="Ihre yh-Nummer" />
                 <span asp-validation-for="Benutzername" class="login-fielderr"></span>
             </div>
 
             <div class="login-field">
-                <label asp-for="Passwort"><i class="bi bi-key"></i> Passwort</label>
+                <label asp-for="Passwort">Kennwort</label>
                 <div class="login-pwd-wrap">
                     <input asp-for="Passwort" type="password" id="loginPwd" autocomplete="current-password" />
-                    <button type="button" class="login-pwd-toggle" onclick="togglePwd()" tabindex="-1" aria-label="Passwort anzeigen">
+                    <button type="button" class="login-pwd-toggle" onclick="togglePwd()" tabindex="-1" aria-label="Kennwort anzeigen">
                         <i class="bi bi-eye" id="loginPwdIcon"></i>
                     </button>
                 </div>
                 <span asp-validation-for="Passwort" class="login-fielderr"></span>
             </div>
 
-            <button type="submit" class="login-btn">
-                <i class="bi bi-box-arrow-in-right"></i> Einloggen
-            </button>
+            <button type="submit" class="login-btn">Einloggen</button>
         </form>
-
-        <div class="login-foot">
-            <span>Domäne: <code>idfp.rz.bankenit.de</code></span>
-        </div>
     </div>
 </div>
 

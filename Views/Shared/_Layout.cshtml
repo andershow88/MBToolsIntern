@@ -35,7 +35,7 @@
         <button class="mc-theme-toggle" id="themeToggle" title="Dark/Light Mode">
             <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
         </button>
-        <span class="mc-version-tag" title="Aktive Version">V12</span>
+        <span class="mc-version-tag" title="Aktive Version">V15</span>
     </div>
 </nav>
 
@@ -141,7 +141,8 @@
             const cancel = document.getElementById('mcModalCancel');
 
             titel.textContent = opts.titel || 'Hinweis';
-            body.textContent = opts.text || '';
+            if (opts.html) body.innerHTML = opts.html;
+            else body.textContent = opts.text || '';
             icon.className = 'bi ' + (opts.icon || 'bi-info-circle');
             icon.style.color = farben[opts.variante] || farben.info;
             ok.textContent = opts.okText || 'OK';

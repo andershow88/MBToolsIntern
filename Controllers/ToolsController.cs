@@ -603,4 +603,97 @@ public class ToolsController : Controller
             return Json(new { error = "Fehler: " + ex.Message });
         }
     }
+
+    // ── KI-URL-Analyse (Webseite laden + an OpenAI) ────────────────────
+    [HttpPost]
+    [RequestSizeLimit(20_000_000)]
+    public async Task<IActionResult> KiUrl(string url, string aktion, string? extra)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return Json(new { error = "Keine URL." });
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            return Json(new { error = "URL muss mit http:// oder https:// beginnen." });
+
+        var key = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? _config["OpenAiApiKey"];
+        if (string.IsNullOrWhiteSpace(key))
+            return Json(new { error = "OpenAI ist nicht konfiguriert (kein API-Key)." });
+
+        try
+        {
+            // 1. Webseite laden
+            using var client = BuildProxyHttpClient(TimeSpan.FromSeconds(20));
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; MBToolsIntern/1.0)");
+            var html = await client.GetStringAsync(url);
+
+            // 2. Titel extrahieren
+            var titelMatch = System.Text.RegularExpressions.Regex.Match(html, @"<title[^>]*>(.*?)</title>",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            var titel = titelMatch.Success ? System.Net.WebUtility.HtmlDecode(titelMatch.Groups[1].Value).Trim() : "";
+
+            // 3. HTML zu Klartext
+            var text = System.Text.RegularExpressions.Regex.Replace(html,
+                @"<(script|style|noscript|svg)[^>]*>[\s\S]*?</\1>", " ",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", " ");
+            text = System.Net.WebUtility.HtmlDecode(text);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+            if (text.Length > 18000) text = text[..18000] + "\n... (gekürzt)";
+            var zeichenCount = text.Length;
+
+            if (zeichenCount < 100)
+                return Json(new { error = "Konnte aus der Webseite kaum Text extrahieren — vielleicht ist es eine Login-Seite oder eine geschützte Ressource?" });
+
+            // 4. Prompt je Aktion
+            var aufgabe = (aktion ?? "zusammenfassen").ToLowerInvariant();
+            string anweisung = aufgabe switch
+            {
+                "erklaeren" => "Erkläre den Inhalt dieser Webseite einfach und verständlich für jemand mit wenig Vorwissen. Strukturiere die Erklärung mit Markdown-Überschriften und Stichpunkten.",
+                "uebersetzen" => $"Übersetze den Inhalt dieser Webseite ins {(string.IsNullOrWhiteSpace(extra) ? "Englische" : extra)}. Erhalte die Struktur (Überschriften, Absätze).",
+                "frage" => $"Beantworte folgende Frage anhand des Webseiten-Inhalts. Wenn die Antwort nicht im Text steht, sage das ehrlich.\n\nFrage: {extra}",
+                _ => "Fasse den Inhalt dieser Webseite kompakt zusammen — Hauptaussagen, Kernargumente, ggf. Kennzahlen. Verwende Markdown mit Stichpunkten."
+            };
+
+            var system = "Du bist ein hilfreicher Assistent von MerkurTools (Merkur Privatbank). " +
+                         "Antworte praezise auf Deutsch (sofern nicht ausdruecklich uebersetzt werden soll). " +
+                         "Verwende Markdown.";
+
+            var requestBody = new
+            {
+                model = "gpt-4o-mini",
+                temperature = 0.3,
+                max_tokens = 2500,
+                messages = new object[]
+                {
+                    new { role = "system", content = system },
+                    new { role = "user",   content = $"{anweisung}\n\n--- Webseiten-Inhalt (Quelle: {url}) ---\n{text}" }
+                }
+            };
+
+            using var aiClient = BuildProxyHttpClient(TimeSpan.FromSeconds(120));
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+            req.Headers.Add("Authorization", "Bearer " + key);
+            req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+            var resp = await aiClient.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                _log.LogWarning("OpenAI {Status}: {Body}", resp.StatusCode, body);
+                return Json(new { error = $"OpenAI: HTTP {(int)resp.StatusCode}" });
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            var antwort = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+            return Json(new { antwort, titel, zeichen = zeichenCount });
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogError(ex, "URL-Analyse: Netzwerk-/Proxy-Fehler");
+            return Json(new { error = "Webseite/Proxy nicht erreichbar: " + ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "URL-Analyse fehlgeschlagen");
+            return Json(new { error = "Fehler: " + ex.Message });
+        }
+    }
 }

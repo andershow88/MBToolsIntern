@@ -62,6 +62,10 @@
             <div class="tool-icon" style="background:linear-gradient(135deg,#10A37F,#1A7F64);"><i class="bi bi-chat-dots"></i></div>
             <div><div class="tool-name">Chat (OpenAI)</div><div class="tool-desc">Frage stellen, Dialog führen — läuft via Proxy gegen OpenAI, Markdown-Antworten</div></div>
         </div>
+        <div class="tool-card" onclick="toolOeffnen('kiurl')">
+            <div class="tool-icon" style="background:linear-gradient(135deg,#39747A,#10A37F);"><i class="bi bi-globe2"></i></div>
+            <div><div class="tool-name">URL analysieren</div><div class="tool-desc">Webseite laden lassen und zusammenfassen, übersetzen, erklären oder Fragen dazu stellen</div></div>
+        </div>
     </div>
     <div class="panel-holder" id="holder-ki"></div>
 </section>
@@ -230,6 +234,7 @@
 
         <!-- Datei-Modus -->
         <div id="trBereichFile" class="tr-file-bereich" style="display:none;">
+            <div id="trFileHinweis" class="tr-file-hinweis"></div>
             <div class="tr-dropzone" onclick="document.getElementById('trDatei').click()"
                  ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
                  ondrop="event.preventDefault();this.classList.remove('dragover');trDateiSetzen(event.dataTransfer.files[0])">
@@ -284,6 +289,63 @@
                       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();kichatSenden();}"
                       oninput="kiAutoResize(this)"></textarea>
             <button class="ki-send" id="kiSendBtn" onclick="kichatSenden()" title="Senden"><i class="bi bi-send"></i></button>
+        </div>
+    </div>
+</section>
+
+<!-- KI URL analysieren -->
+<section class="mc-section" id="panel-kiurl" style="display:none;">
+    <div class="ki-card" style="height:auto;">
+        <div class="ki-header">
+            <div class="ki-header-left">
+                <div class="ki-logo" style="background:linear-gradient(135deg,#39747A,#10A37F);"><i class="bi bi-globe2"></i></div>
+                <div>
+                    <div class="ki-title">URL analysieren</div>
+                    <div class="ki-subtitle">Webseite laden, durch Proxy holen und KI-gestützt aufbereiten</div>
+                </div>
+            </div>
+            <div class="ki-header-right">
+                <button class="ki-action-ghost" onclick="kiurlReset()" title="Neu starten"><i class="bi bi-arrow-clockwise"></i></button>
+                <button class="ki-close" onclick="toolSchliessen('kiurl')" title="Schliessen"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+
+        <div id="kiurlStatus" class="ki-banner" style="display:none;"></div>
+
+        <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:1rem;">
+            <div>
+                <label style="display:block; font-size:.78rem; font-weight:600; letter-spacing:.05em; color:var(--mc-text-muted); text-transform:uppercase; margin-bottom:.4rem;">Webseite (URL)</label>
+                <input id="kiurlInput" type="url" placeholder="https://www.beispiel.de/artikel"
+                    style="width:100%; padding:.7rem .9rem; border:1px solid var(--mc-border); border-radius:10px; font-size:.95rem; background:var(--mc-bg-card); color:var(--mc-text-dark); outline:none;"
+                    onfocus="this.style.borderColor='#10A37F'" onblur="this.style.borderColor='var(--mc-border)'" />
+            </div>
+
+            <div>
+                <label style="display:block; font-size:.78rem; font-weight:600; letter-spacing:.05em; color:var(--mc-text-muted); text-transform:uppercase; margin-bottom:.4rem;">Was soll die KI mit dem Inhalt machen?</label>
+                <div class="kiurl-aktion-grid">
+                    <label class="kiurl-aktion"><input type="radio" name="kiurlAktion" value="zusammenfassen" checked /><span><i class="bi bi-list-ul"></i> Zusammenfassen</span></label>
+                    <label class="kiurl-aktion"><input type="radio" name="kiurlAktion" value="erklaeren" /><span><i class="bi bi-question-circle"></i> Erklären</span></label>
+                    <label class="kiurl-aktion"><input type="radio" name="kiurlAktion" value="uebersetzen" /><span><i class="bi bi-translate"></i> Übersetzen</span></label>
+                    <label class="kiurl-aktion"><input type="radio" name="kiurlAktion" value="frage" /><span><i class="bi bi-chat-dots"></i> Frage stellen</span></label>
+                </div>
+            </div>
+
+            <div id="kiurlExtra" style="display:none;">
+                <label id="kiurlExtraLabel" style="display:block; font-size:.78rem; font-weight:600; letter-spacing:.05em; color:var(--mc-text-muted); text-transform:uppercase; margin-bottom:.4rem;"></label>
+                <input id="kiurlExtraInput" type="text"
+                    style="width:100%; padding:.7rem .9rem; border:1px solid var(--mc-border); border-radius:10px; font-size:.95rem; background:var(--mc-bg-card); color:var(--mc-text-dark); outline:none;"
+                    onfocus="this.style.borderColor='#10A37F'" onblur="this.style.borderColor='var(--mc-border)'" />
+            </div>
+
+            <div style="display:flex; gap:.5rem; align-items:center;">
+                <button id="kiurlBtn" onclick="kiurlAnalysieren()"
+                    style="padding:.65rem 1.4rem; border:none; border-radius:10px; background:linear-gradient(135deg,#10A37F,#1A7F64); color:#fff; font-weight:600; font-size:.9rem; cursor:pointer; box-shadow:0 4px 12px rgba(16,163,127,.35);">
+                    <i class="bi bi-magic"></i> Analysieren
+                </button>
+                <span id="kiurlInfo" style="font-size:.78rem; color:var(--mc-text-muted);"></span>
+            </div>
+
+            <div id="kiurlErgebnis" class="ki-msg-bubble" style="display:none; background:var(--mc-bg-alt); border:1px solid var(--mc-border); padding:1rem 1.15rem; border-radius:14px;"></div>
         </div>
     </div>
 </section>
@@ -356,12 +418,13 @@
 <script>
 // Globale Tool-Verwaltung
 let _aktivesTool = null;
-const ALLE_TOOLS = ['encrypt','convert','text','ocr','translate','split','merge','info','kichat'];
+const ALLE_TOOLS = ['encrypt','convert','text','ocr','translate','split','merge','info','kichat','kiurl'];
 const TOOL_ZU_HOLDER = {
     encrypt: 'holder-pdf', convert: 'holder-pdf', text: 'holder-pdf',
     split:   'holder-pdf', merge:   'holder-pdf', info:  'holder-pdf',
     translate: 'holder-uebersetzen',
     kichat:    'holder-ki',
+    kiurl:     'holder-ki',
     ocr:       'holder-spielwiese'
 };
 
@@ -384,7 +447,8 @@ function toolOeffnen(id, modus) {
 
     panel.style.display = '';
     if (id === 'translate' && modus) trSetzeModus(modus);
-    if (id === 'kichat') kichatInit();
+    if (id === 'kichat') kichatVorOeffnen();
+    if (id === 'kiurl') kiurlInit();
 
     setTimeout(() => {
         const topbarH = document.querySelector('.mc-topbar')?.offsetHeight || 64;
@@ -408,16 +472,29 @@ function toolReset(id) {
         case 'ocr':       ocrReset();       break;
         case 'translate': translateReset(); break;
         case 'kichat':    kichatReset();    break;
+        case 'kiurl':     kiurlReset();     break;
         case 'info':      infoReset();      break;
         case 'convert':   convertReset();   break;
     }
 }
 
-// Download-Cache pro Tool — wird vom Speichern-Dialog gelesen
+// Download-Cache pro Tool
 let mergeBlob = null;
 let convertBlob = null, convertName = '';
 let encryptBlob = null, encryptName = '';
 let encryptOriginalFile = null;
+
+// Direkter Download für PDF-Tools — ohne Speichern-Dialog
+function pdfDirektDownload(blob, name) {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name || 'datei.pdf';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+}
 
 // Reset-Funktionen (jeweils: Datei-Inputs, Result-Bereiche, State)
 function encryptReset() {
@@ -491,7 +568,7 @@ async function mergeStart() {
             mergeBlob = await r.blob();
             const res = document.getElementById('mergeResult');
             res.style.display = 'block';
-            res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;"><i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i><div><strong>${mergeFileList.length} PDFs zusammengeführt</strong></div><button class="btn-mc btn-mc-filled" onclick="mcSpeichern(mergeBlob,'zusammengefuehrt.pdf')" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button></div>`;
+            res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;"><i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i><div><strong>${mergeFileList.length} PDFs zusammengeführt</strong></div><button class="btn-mc btn-mc-filled" onclick="pdfDirektDownload(mergeBlob,'zusammengefuehrt.pdf')" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button></div>`;
         } else {
             const d = await r.json();
             mcError(d.error || 'Zusammenführen fehlgeschlagen.');
@@ -523,7 +600,7 @@ async function splitStart() {
     const r = await fetch('/api/PdfSplit', { method: 'POST', body: fd });
     if (r.headers.get('content-type')?.includes('pdf')) {
         const blob = await r.blob();
-        mcSpeichern(blob, `seiten_${von}-${bis}.pdf`);
+        pdfDirektDownload(blob, `seiten_${von}-${bis}.pdf`);
     } else { const d = await r.json(); mcError(d.error || 'Aufteilen fehlgeschlagen.'); }
 }
 
@@ -558,7 +635,7 @@ async function convertStart(f) {
             res.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;">
                 <i class="bi bi-check-circle-fill" style="color:var(--mc-success);font-size:1.3rem;"></i>
                 <div><strong>${f.name}</strong> → <strong>${convertName}</strong></div>
-                <button class="btn-mc btn-mc-filled" onclick="mcSpeichern(convertBlob, convertName)" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> PDF herunterladen</button>
+                <button class="btn-mc btn-mc-filled" onclick="pdfDirektDownload(convertBlob, convertName)" style="margin-left:auto;font-size:.82rem;"><i class="bi bi-download"></i> PDF herunterladen</button>
             </div>`;
         } else {
             const d = await r.json();
@@ -577,6 +654,32 @@ function kichatInit() {
     _kiInitiiert = true;
     kichatLeerenZuInitial();
     kichatStatusLaden();
+}
+
+async function kichatVorOeffnen() {
+    const ok = await mcModal({
+        titel: 'Hinweise zum Einsatz der KI',
+        icon: 'bi-shield-check',
+        variante: 'warn',
+        html: `
+            <div style="line-height:1.6; font-size:.92rem;">
+                Bevor du den KI-Assistenten nutzt, bitte folgende Punkte beachten:
+                <ul style="margin:.75rem 0 .75rem 1.15rem; padding:0;">
+                    <li><strong>Datenschutz (DSGVO):</strong> Keine personenbezogenen Daten von Kund:innen, Kolleg:innen oder Dritten eingeben — keine Namen, Kontonummern, IBAN, Adressen, Geburtsdaten o. ä.</li>
+                    <li><strong>Bankgeheimnis:</strong> Keine vertraulichen Geschäfts- oder Mandatsinformationen teilen.</li>
+                    <li><strong>Antworten prüfen:</strong> KI-Antworten können falsch oder unvollständig sein. Vor Weiterverwendung kritisch verifizieren.</li>
+                    <li><strong>Verantwortung:</strong> Die fachliche und rechtliche Verantwortung liegt weiterhin bei dir.</li>
+                </ul>
+                <div style="font-size:.82rem; color:var(--mc-text-muted);">Anfragen werden über den internen Bank-Proxy an OpenAI übermittelt.</div>
+            </div>`,
+        okText: 'Verstanden',
+        bestaetigung: false
+    });
+    if (ok === false) {
+        toolSchliessen('kichat');
+        return;
+    }
+    kichatInit();
 }
 
 async function kichatStatusLaden() {
@@ -731,6 +834,94 @@ function kichatMarkdown(raw) {
     }).join('');
 }
 
+// ═══ KI URL analysieren ═══
+let _kiurlInit = false;
+
+function kiurlInit() {
+    if (_kiurlInit) return;
+    _kiurlInit = true;
+    document.querySelectorAll('input[name="kiurlAktion"]').forEach(r => {
+        r.addEventListener('change', kiurlAktionGeaendert);
+    });
+    kiurlAktionGeaendert();
+}
+
+function kiurlAktionGeaendert() {
+    const wahl = document.querySelector('input[name="kiurlAktion"]:checked')?.value;
+    const extra = document.getElementById('kiurlExtra');
+    const lab = document.getElementById('kiurlExtraLabel');
+    const inp = document.getElementById('kiurlExtraInput');
+    if (wahl === 'uebersetzen') {
+        extra.style.display = 'block';
+        lab.textContent = 'Zielsprache (z. B. Englisch, Französisch, …)';
+        inp.placeholder = 'Englisch';
+    } else if (wahl === 'frage') {
+        extra.style.display = 'block';
+        lab.textContent = 'Deine Frage zum Inhalt';
+        inp.placeholder = 'Was wird hier konkret zur DSGVO ausgeführt?';
+    } else {
+        extra.style.display = 'none';
+        inp.value = '';
+    }
+}
+
+async function kiurlAnalysieren() {
+    const url = document.getElementById('kiurlInput').value.trim();
+    if (!url) { mcAlert('Bitte eine URL eingeben.', { variante: 'warn', icon: 'bi-globe2' }); return; }
+    if (!/^https?:\/\//i.test(url)) { mcAlert('URL muss mit http:// oder https:// beginnen.', { variante: 'warn' }); return; }
+
+    const aktion = document.querySelector('input[name="kiurlAktion"]:checked')?.value || 'zusammenfassen';
+    const extra = document.getElementById('kiurlExtraInput')?.value.trim() || '';
+
+    if (aktion === 'frage' && !extra) { mcAlert('Bitte eine Frage eingeben.', { variante: 'warn' }); return; }
+
+    const btn = document.getElementById('kiurlBtn');
+    const info = document.getElementById('kiurlInfo');
+    const erg = document.getElementById('kiurlErgebnis');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird analysiert…';
+    info.textContent = 'Webseite wird geladen und an die KI übermittelt…';
+    erg.style.display = 'none'; erg.innerHTML = '';
+
+    try {
+        const fd = new FormData();
+        fd.append('url', url);
+        fd.append('aktion', aktion);
+        fd.append('extra', extra);
+        const r = await fetch('/api/KiUrl', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) {
+            erg.style.display = 'block';
+            erg.innerHTML = `<div style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> ${d.error}</div>`;
+            info.textContent = '';
+            return;
+        }
+        erg.style.display = 'block';
+        erg.innerHTML = `
+            <div style="font-size:.78rem; color:var(--mc-text-muted); margin-bottom:.6rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+                <i class="bi bi-globe2" style="color:#10A37F;"></i>
+                <span>Quelle: <strong>${(d.titel || '').replace(/</g,'&lt;') || url}</strong></span>
+                ${d.zeichen ? '<span style="color:var(--mc-text-muted);">·</span><span>' + d.zeichen.toLocaleString('de-DE') + ' Zeichen analysiert</span>' : ''}
+            </div>
+            ${kichatMarkdown(d.antwort || '(leere Antwort)')}`;
+        info.textContent = '';
+    } catch (e) {
+        erg.style.display = 'block';
+        erg.innerHTML = '<div style="color:var(--mc-danger);">Verbindungsfehler bei der Analyse.</div>';
+        info.textContent = '';
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-magic"></i> Analysieren';
+    }
+}
+
+function kiurlReset() {
+    document.getElementById('kiurlInput').value = '';
+    document.getElementById('kiurlExtraInput').value = '';
+    const erg = document.getElementById('kiurlErgebnis'); if (erg) { erg.style.display = 'none'; erg.innerHTML = ''; }
+    const r = document.querySelector('input[name="kiurlAktion"][value="zusammenfassen"]'); if (r) r.checked = true;
+    kiurlAktionGeaendert();
+    document.getElementById('kiurlInfo').textContent = '';
+}
+
 // ═══ Übersetzen (DeepL) ═══
 const TR_SPRACHEN_QUELLE = [
     { code: 'AUTO', name: 'automatisch erkennen' },
@@ -787,14 +978,36 @@ function trSetzeModus(modus) {
     _trModus = modus;
     const titel = document.getElementById('trTitel');
     const badge = document.getElementById('trModeBadge');
+    const hinweis = document.getElementById('trFileHinweis');
     if (modus === 'free') {
         titel.textContent = 'DeepL Test API';
         badge.textContent = 'FREE';
         badge.classList.add('tr-mode-free');
+        if (hinweis) {
+            hinweis.classList.remove('tr-file-hinweis-pro');
+            hinweis.innerHTML = `
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <div class="tr-file-hinweis-titel">Hinweis: 50.000 Zeichen Mindestabrechnung pro Datei</div>
+                    <div class="tr-file-hinweis-text">DeepL berechnet bei Dokument-Übersetzungen — insbesondere bei <strong>PDFs</strong> — immer mindestens <strong>50.000 Zeichen</strong>, egal wie klein das Dokument ist. Bitte sparsam einsetzen.</div>
+                    <div class="tr-file-hinweis-fuss">Dies ist die kostenlose Test-API mit begrenztem Monats-Kontingent. Für regelmäßige Übersetzungen die Pro-Variante nutzen.</div>
+                </div>`;
+        }
     } else {
         titel.textContent = 'DeepL Pro Advanced';
         badge.textContent = 'PRO';
         badge.classList.remove('tr-mode-free');
+        if (hinweis) {
+            hinweis.classList.add('tr-file-hinweis-pro');
+            hinweis.innerHTML = `
+                <span class="tr-pflicht-pill">PFLICHT BEACHTEN</span>
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <div class="tr-file-hinweis-titel">Achtung — kostenpflichtig: Mindestabrechnung 50.000 Zeichen pro Datei</div>
+                    <div class="tr-file-hinweis-text">Auch bei sehr kleinen Dokumenten — vor allem <strong>PDFs</strong> — verbraucht <strong>jede</strong> Übersetzung mindestens <strong>50.000 Zeichen</strong> aus dem Pro-Kontingent. Da die Pro-Lizenz nach Verbrauch abgerechnet wird, entstehen reale Kosten.</div>
+                    <div class="tr-file-hinweis-fuss">Bitte vor jeder Dokument-Übersetzung prüfen, ob der Inhalt nicht alternativ als <strong>Text-Übersetzung</strong> erledigt werden kann — das spart erheblich Kontingent.</div>
+                </div>`;
+        }
     }
     trStatusLaden();
 }
@@ -1024,7 +1237,7 @@ async function encryptStart(f, eigenesPasswort) {
                 <div style="flex:1;min-width:200px;"><strong>${f.name}</strong> wurde mit AES-256 verschlüsselt</div>
                 <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
                     <button class="btn-mc btn-mc-primary" onclick="mcMailDialog(encryptBlob, encryptName)" style="font-size:.82rem;"><i class="bi bi-envelope-paper"></i> Als E-Mail-Anhang</button>
-                    <button class="btn-mc btn-mc-filled" onclick="mcSpeichern(encryptBlob, encryptName)" style="font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button>
+                    <button class="btn-mc btn-mc-filled" onclick="pdfDirektDownload(encryptBlob, encryptName)" style="font-size:.82rem;"><i class="bi bi-download"></i> Herunterladen</button>
                 </div>
             </div>
             <div style="background:linear-gradient(135deg,rgba(167,12,35,.06),rgba(167,12,35,.02));border:1px solid rgba(167,12,35,.25);border-radius:var(--mc-radius-sm);padding:1rem;">
