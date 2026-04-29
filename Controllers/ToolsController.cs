@@ -389,16 +389,19 @@ public class ToolsController : Controller
     }
 
     // ── Übersetzung (DeepL) ─────────────────────────────────────────────
-    private Translator? GetDeepL()
+    private Translator? GetDeepL(string? typ = null)
     {
-        var key = Environment.GetEnvironmentVariable("DEEPL_API_KEY") ?? _config["DeepLApiKey"];
+        var istFree = string.Equals(typ, "free", StringComparison.OrdinalIgnoreCase);
+        var key = istFree
+            ? (Environment.GetEnvironmentVariable("DEEPL_API_KEY_FREE") ?? _config["DeepLApiKeyFree"])
+            : (Environment.GetEnvironmentVariable("DEEPL_API_KEY") ?? _config["DeepLApiKey"]);
         return string.IsNullOrWhiteSpace(key) ? null : new Translator(key);
     }
 
     [HttpGet]
-    public async Task<IActionResult> DeeplStatus()
+    public async Task<IActionResult> DeeplStatus(string? typ = null)
     {
-        var dl = GetDeepL();
+        var dl = GetDeepL(typ);
         if (dl == null) return Json(new { konfiguriert = false });
         try
         {
@@ -420,9 +423,9 @@ public class ToolsController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Translate(string text, string ziel, string? quelle = null)
+    public async Task<IActionResult> Translate(string text, string ziel, string? quelle = null, string? typ = null)
     {
-        var dl = GetDeepL();
+        var dl = GetDeepL(typ);
         if (dl == null) return Json(new { error = "DeepL ist nicht konfiguriert (kein API-Key in appsettings.json)." });
         if (string.IsNullOrWhiteSpace(text)) return Json(new { error = "Kein Text zum Übersetzen." });
         if (string.IsNullOrWhiteSpace(ziel)) return Json(new { error = "Bitte Zielsprache wählen." });
@@ -446,9 +449,9 @@ public class ToolsController : Controller
 
     [HttpPost]
     [RequestSizeLimit(100_000_000)]
-    public async Task<IActionResult> TranslateDocument(IFormFile datei, string ziel, string? quelle = null)
+    public async Task<IActionResult> TranslateDocument(IFormFile datei, string ziel, string? quelle = null, string? typ = null)
     {
-        var dl = GetDeepL();
+        var dl = GetDeepL(typ);
         if (dl == null) return Json(new { error = "DeepL ist nicht konfiguriert (kein API-Key in appsettings.json)." });
         if (datei == null || datei.Length == 0) return Json(new { error = "Keine Datei." });
 
