@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using System.Runtime.Versioning;
 using System.Security.Claims;
@@ -58,52 +59,18 @@ public class AccountController : Controller
             string email = string.Empty;
             try
             {
-                UserPrincipal? user = null;
-                var versuche = new[]
+                var info = SucheADUser(ctx, domain, model.Benutzername);
+                if (info != null)
                 {
-                    model.Benutzername,
-                    model.Benutzername.Contains('\\') ? model.Benutzername.Split('\\').Last() : model.Benutzername,
-                    model.Benutzername.Contains('@') ? model.Benutzername.Split('@')[0] : model.Benutzername,
-                };
-                var idTypes = new[] { IdentityType.SamAccountName, IdentityType.UserPrincipalName, IdentityType.Name };
-
-                foreach (var v in versuche.Distinct())
-                {
-                    foreach (var t in idTypes)
-                    {
-                        try
-                        {
-                            user = UserPrincipal.FindByIdentity(ctx, t, v);
-                            if (user != null) { _log.LogInformation("AD-User gefunden via {Type} mit '{V}'", t, v); break; }
-                        }
-                        catch (Exception ex) { _log.LogDebug(ex, "FindByIdentity {T}/{V} fehlgeschlagen", t, v); }
-                    }
-                    if (user != null) break;
-                }
-
-                if (user != null)
-                {
-                    var vorname = (user.GivenName ?? string.Empty).Trim();
-                    var nachname = (user.Surname ?? string.Empty).Trim();
-                    var displayName = (user.DisplayName ?? string.Empty).Trim();
-                    var name = (user.Name ?? string.Empty).Trim();
-                    _log.LogInformation("AD-Felder fuer {User}: GivenName='{Given}', Surname='{Sur}', DisplayName='{DN}', Name='{N}', Mail='{M}'",
-                        model.Benutzername, vorname, nachname, displayName, name, user.EmailAddress);
-
-                    var vollName = $"{vorname} {nachname}".Trim();
-                    if (!string.IsNullOrWhiteSpace(vollName))
-                        anzeigeName = vollName;
-                    else if (!string.IsNullOrWhiteSpace(displayName))
-                        anzeigeName = displayName;
-                    else if (!string.IsNullOrWhiteSpace(name))
-                        anzeigeName = name;
-
-                    email = user.EmailAddress ?? string.Empty;
-                    user.Dispose();
+                    var vollName = $"{info.Value.Vorname} {info.Value.Nachname}".Trim();
+                    if (!string.IsNullOrWhiteSpace(vollName)) anzeigeName = vollName;
+                    else if (!string.IsNullOrWhiteSpace(info.Value.DisplayName)) anzeigeName = info.Value.DisplayName;
+                    else if (!string.IsNullOrWhiteSpace(info.Value.Name)) anzeigeName = info.Value.Name;
+                    email = info.Value.Mail;
                 }
                 else
                 {
-                    _log.LogWarning("AD-User '{User}' wurde mit keinem der Verfahren gefunden — User-ID bleibt als Anzeigename", model.Benutzername);
+                    _log.LogWarning("AD-User '{User}' wurde nicht gefunden — User-ID bleibt als Anzeigename", model.Benutzername);
                 }
             }
             catch (Exception ex)
@@ -121,6 +88,90 @@ public class AccountController : Controller
             return View(model);
         }
     }
+
+    private record struct ADInfo(string Vorname, string Nachname, string DisplayName, string Name, string Mail);
+
+    private ADInfo? SucheADUser(PrincipalContext primaryCtx, string primaryDomain, string benutzer)
+    {
+        // Mehrere Schreibweisen
+        var sam = benutzer.Contains('\\') ? benutzer.Split('\\').Last() : benutzer;
+        sam = sam.Contains('@') ? sam.Split('@')[0] : sam;
+        var versuche = new[] { benutzer, sam }.Distinct().ToArray();
+        var idTypes = new[] { IdentityType.SamAccountName, IdentityType.UserPrincipalName, IdentityType.Name };
+
+        // 1) primary context
+        foreach (var v in versuche)
+            foreach (var t in idTypes)
+                try
+                {
+                    using var u = UserPrincipal.FindByIdentity(primaryCtx, t, v);
+                    if (u != null) { _log.LogInformation("AD via primary {T}/{V}", t, v); return MapUser(u); }
+                }
+                catch { }
+
+        // 2) lokale Server-Domain (falls anders)
+        var lokal = Environment.GetEnvironmentVariable("USERDNSDOMAIN");
+        if (!string.IsNullOrWhiteSpace(lokal) && !string.Equals(lokal, primaryDomain, StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var v in versuche)
+                foreach (var t in idTypes)
+                    try
+                    {
+                        using var c = new PrincipalContext(ContextType.Domain, lokal);
+                        using var u = UserPrincipal.FindByIdentity(c, t, v);
+                        if (u != null) { _log.LogInformation("AD via lokale Domain {D} {T}/{V}", lokal, t, v); return MapUser(u); }
+                    }
+                    catch { }
+        }
+
+        // 3) Global-Catalog-Search (durchsucht den ganzen Forest)
+        foreach (var d in new[] { primaryDomain, lokal }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct())
+        {
+            try
+            {
+                var sf = LdapEscape(sam);
+                using var root = new DirectoryEntry($"GC://{d}");
+                using var ds = new DirectorySearcher(root)
+                {
+                    Filter = $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={sf}))",
+                    SearchScope = SearchScope.Subtree
+                };
+                ds.PropertiesToLoad.AddRange(new[] { "givenName", "sn", "displayName", "name", "mail" });
+                var r = ds.FindOne();
+                if (r != null)
+                {
+                    _log.LogInformation("AD via Global-Catalog {D}", d);
+                    var given = r.Properties["givenName"].Cast<object>().FirstOrDefault()?.ToString() ?? "";
+                    var sn = r.Properties["sn"].Cast<object>().FirstOrDefault()?.ToString() ?? "";
+                    var dn = r.Properties["displayName"].Cast<object>().FirstOrDefault()?.ToString() ?? "";
+                    var nm = r.Properties["name"].Cast<object>().FirstOrDefault()?.ToString() ?? "";
+                    var ml = r.Properties["mail"].Cast<object>().FirstOrDefault()?.ToString() ?? "";
+                    _log.LogInformation("GC-Felder: GivenName='{G}', Surname='{S}', DisplayName='{DN}', Name='{N}', Mail='{M}'", given, sn, dn, nm, ml);
+                    return new ADInfo(given.Trim(), sn.Trim(), dn.Trim(), nm.Trim(), ml.Trim());
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogDebug(ex, "GC-Search auf {D} fehlgeschlagen", d);
+            }
+        }
+
+        return null;
+    }
+
+    private ADInfo MapUser(UserPrincipal u)
+    {
+        var v = (u.GivenName ?? "").Trim();
+        var n = (u.Surname ?? "").Trim();
+        var dn = (u.DisplayName ?? "").Trim();
+        var nm = (u.Name ?? "").Trim();
+        var m = u.EmailAddress ?? "";
+        _log.LogInformation("AD-Felder: GivenName='{G}', Surname='{S}', DisplayName='{DN}', Name='{N}', Mail='{M}'", v, n, dn, nm, m);
+        return new ADInfo(v, n, dn, nm, m);
+    }
+
+    private static string LdapEscape(string s)
+        => s.Replace("\\", "\\5c").Replace("*", "\\2a").Replace("(", "\\28").Replace(")", "\\29").Replace("\0", "\\00");
 
     private async Task<IActionResult> LoginAbschliessen(LoginViewModel model, string userId, string anzeigeName, string email)
     {
