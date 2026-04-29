@@ -36,18 +36,18 @@
 <section class="mc-section">
     <div class="mc-section-title"><i class="bi bi-translate"></i> MerkurTools — Übersetzungen</div>
     <div class="tool-grid">
+        <div class="tool-card tool-card-translate" onclick="toolOeffnen('translate', 'free')">
+            <div class="tool-icon" style="background:linear-gradient(135deg,#7B8FE0,#5B6BC0);"><i class="bi bi-translate"></i></div>
+            <div style="flex:1;">
+                <div class="tool-name">DeepL Test API <span class="tool-pill tool-pill-free">FREE</span></div>
+                <div class="tool-desc">Kostenloser Test-Schlüssel — 1 Mio. Zeichen/Monat (1 Zeichen = 1 Credit), ideal zum Ausprobieren</div>
+            </div>
+        </div>
         <div class="tool-card tool-card-translate" onclick="toolOeffnen('translate', 'pro')">
             <div class="tool-icon" style="background:linear-gradient(135deg,#5B6BC0,#3D4D9C);"><i class="bi bi-translate"></i></div>
             <div style="flex:1;">
                 <div class="tool-name">DeepL Pro Advanced <span class="tool-pill tool-pill-pro">PRO</span></div>
                 <div class="tool-desc">Lizenzierter Pro-Schlüssel — höchste Qualität, ohne monatliches Limit, EU-Hosting mit DPA</div>
-            </div>
-        </div>
-        <div class="tool-card tool-card-translate" onclick="toolOeffnen('translate', 'free')">
-            <div class="tool-icon" style="background:linear-gradient(135deg,#7B8FE0,#5B6BC0);"><i class="bi bi-translate"></i></div>
-            <div style="flex:1;">
-                <div class="tool-name">DeepL Test API <span class="tool-pill tool-pill-free">FREE</span></div>
-                <div class="tool-desc">Kostenloser Test-Schlüssel — 500.000 Zeichen/Monat, ideal zum Ausprobieren ohne Kosten</div>
             </div>
         </div>
     </div>
@@ -804,20 +804,23 @@ async function trStatusLaden() {
     const box = document.getElementById('trVerbrauchBox');
     const label = document.getElementById('trVerbrauchLabel');
     const bar = document.getElementById('trVerbrauchBar');
+    const card = document.querySelector('#panel-translate .tr-card');
     try {
         const r = await fetch('/api/DeeplStatus?typ=' + encodeURIComponent(_trModus));
         const d = await r.json();
         if (!d.konfiguriert) {
-            banner.style.display = 'block';
-            banner.style.background = 'rgba(222,98,80,.1)';
-            banner.style.color = 'var(--mc-warning)';
-            const keyFeld = _trModus === 'free' ? 'DeepLApiKeyFree' : 'DeepLApiKey';
-            const envVar = _trModus === 'free' ? 'DEEPL_API_KEY_FREE' : 'DEEPL_API_KEY';
-            banner.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>${_trModus === 'free' ? 'Test-API' : 'Pro-API'} noch nicht konfiguriert.</strong> Hinterlege den API-Key in <code style="background:rgba(0,0,0,.06);padding:.05rem .3rem;border-radius:3px;">appsettings.json</code> (Feld <code style="background:rgba(0,0,0,.06);padding:.05rem .3rem;border-radius:3px;">${keyFeld}</code>) oder als Umgebungsvariable <code style="background:rgba(0,0,0,.06);padding:.05rem .3rem;border-radius:3px;">${envVar}</code>, dann App-Pool neu starten.`;
+            banner.style.display = 'flex';
+            banner.style.background = 'rgba(91,107,192,.1)';
+            banner.style.color = 'var(--mc-text-dark)';
+            const apiName = _trModus === 'free' ? 'Test-API' : 'Pro-API';
+            const bereichName = _trModus === 'free' ? 'Test-Bereich' : 'Pro-Bereich';
+            banner.innerHTML = `<i class="bi bi-info-circle-fill" style="color:#5B6BC0;"></i><div><strong>${apiName} noch nicht konfiguriert.</strong> Sobald ein API-Schlüssel hinterlegt ist, kann der ${bereichName} genutzt werden.</div>`;
             box.style.display = 'none';
+            if (card) card.classList.add('tr-disabled');
             return false;
         }
         banner.style.display = 'none';
+        if (card) card.classList.remove('tr-disabled');
         if (d.fehler) {
             box.style.display = 'block';
             label.innerHTML = '<span style="color:var(--mc-danger);">' + d.fehler + '</span>';
@@ -834,9 +837,10 @@ async function trStatusLaden() {
         else if (d.prozent > 75) bar.classList.add('warn');
         return true;
     } catch (e) {
-        banner.style.display = 'block';
+        banner.style.display = 'flex';
         banner.style.background = 'rgba(167,12,35,.08)'; banner.style.color = 'var(--mc-danger)';
-        banner.innerHTML = '<i class="bi bi-x-circle"></i> Status-Abfrage fehlgeschlagen.';
+        banner.innerHTML = '<i class="bi bi-x-circle"></i><div>Status-Abfrage fehlgeschlagen.</div>';
+        if (card) card.classList.add('tr-disabled');
         return false;
     }
 }

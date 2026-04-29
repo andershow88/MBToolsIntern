@@ -157,8 +157,19 @@ a:hover { color: var(--mc-petrol-dark); }
 
 /* Banner (API-Key fehlt etc.) */
 .tr-banner {
-    padding: .85rem 1.5rem; border-bottom: 1px solid var(--mc-border);
-    font-size: .85rem; line-height: 1.5;
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--mc-border);
+    font-size: .9rem; line-height: 1.55;
+    display: flex; gap: .65rem; align-items: flex-start;
+}
+.tr-banner i { font-size: 1.15rem; flex-shrink: 0; margin-top: .1rem; }
+.tr-banner strong { font-weight: 700; }
+
+/* Inaktiver Bearbeitungsbereich (z.B. wenn API-Key fehlt) */
+.tr-card.tr-disabled .tr-language-row,
+.tr-card.tr-disabled .tr-tabs,
+.tr-card.tr-disabled .tr-text-grid,
+.tr-card.tr-disabled .tr-file-bereich {
+    opacity: .42; pointer-events: none; user-select: none; filter: grayscale(.4);
 }
 
 /* Sprachauswahl */
