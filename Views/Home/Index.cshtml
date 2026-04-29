@@ -1,9 +1,8 @@
 @{ ViewData["Title"] = "Dokumenten-Tools"; }
 
-<!-- Übersicht -->
+<!-- ═══ MerkurTools — PDF Werkzeuge ═══ -->
 <section class="mc-section">
-    <div class="mc-section-title"><i class="bi bi-tools"></i> MerkurTools — Dokumenten-Werkzeuge</div>
-
+    <div class="mc-section-title"><i class="bi bi-tools"></i> MerkurTools — PDF Werkzeuge</div>
     <div class="tool-grid">
         <div class="tool-card" onclick="toolOeffnen('encrypt')">
             <div class="tool-icon" style="background:#A70C23;"><i class="bi bi-shield-lock"></i></div>
@@ -17,14 +16,6 @@
             <div class="tool-icon" style="background:#A2AE3C;"><i class="bi bi-body-text"></i></div>
             <div><div class="tool-name">Text aus PDF extrahieren</div><div class="tool-desc">Den gesamten Text eines PDFs als Klartext ausgeben</div></div>
         </div>
-        <div class="tool-card" onclick="toolOeffnen('ocr')">
-            <div class="tool-icon" style="background:#39747A;"><i class="bi bi-fonts"></i></div>
-            <div><div class="tool-name">Text aus Scan / Handschrift</div><div class="tool-desc">OCR für eingescannte PDFs — erkennt gedruckten Text gut, Handschrift eingeschränkt</div></div>
-        </div>
-        <div class="tool-card" onclick="toolOeffnen('translate')">
-            <div class="tool-icon" style="background:#5B6BC0;"><i class="bi bi-translate"></i></div>
-            <div><div class="tool-name">Übersetzen (DeepL)</div><div class="tool-desc">Texte oder Dokumente in 30+ Sprachen — Layout bleibt erhalten</div></div>
-        </div>
         <div class="tool-card" onclick="toolOeffnen('split')">
             <div class="tool-icon" style="background:var(--mc-gold);"><i class="bi bi-scissors"></i></div>
             <div><div class="tool-name">PDF aufteilen</div><div class="tool-desc">Seiten aus einem PDF extrahieren oder den Seitenbereich auswählen</div></div>
@@ -36,6 +27,29 @@
         <div class="tool-card" onclick="toolOeffnen('info')">
             <div class="tool-icon" style="background:#6C4562;"><i class="bi bi-info-circle"></i></div>
             <div><div class="tool-name">PDF-Informationen</div><div class="tool-desc">Metadaten anzeigen: Seitenanzahl, Autor, Erstelldatum, Dateigröße</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ MerkurTools — Übersetzungen ═══ -->
+<section class="mc-section">
+    <div class="mc-section-title"><i class="bi bi-translate"></i> MerkurTools — Übersetzungen</div>
+    <div class="tool-grid">
+        <div class="tool-card" onclick="toolOeffnen('translate')">
+            <div class="tool-icon" style="background:#5B6BC0;"><i class="bi bi-translate"></i></div>
+            <div><div class="tool-name">Übersetzen (DeepL)</div><div class="tool-desc">Texte oder Dokumente in 30+ Sprachen — Layout bleibt erhalten</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ MerkurTools — Testzwecke / Spielwiese ═══ -->
+<section class="mc-section">
+    <div class="mc-section-title" style="border-bottom-color:var(--mc-warning);"><i class="bi bi-flask" style="color:var(--mc-warning) !important;"></i> MerkurTools — Testzwecke / Spielwiese</div>
+    <div style="font-size:.78rem;color:var(--mc-text-muted);margin-top:-.6rem;margin-bottom:1rem;">Experimentelle Werkzeuge — Qualität nicht produktionsreif. Nutzung auf eigene Verantwortung.</div>
+    <div class="tool-grid">
+        <div class="tool-card" onclick="toolOeffnen('ocr')">
+            <div class="tool-icon" style="background:#39747A;"><i class="bi bi-fonts"></i></div>
+            <div><div class="tool-name">Text aus Scan / Handschrift</div><div class="tool-desc">OCR für eingescannte PDFs — Druckschrift mässig, Handschrift fast nicht zu gebrauchen</div></div>
         </div>
     </div>
 </section>
@@ -186,10 +200,27 @@
     </div>
 </section>
 
-<!-- OCR / Handschrift -->
+<!-- OCR / Handschrift (Spielwiese) -->
 <section class="mc-section" id="panel-ocr" style="display:none;">
-    <div class="mc-section-title"><i class="bi bi-fonts"></i> Text aus Scan / Handschrift <button onclick="toolSchliessen('ocr')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mc-section-title" style="border-bottom-color:var(--mc-warning);"><i class="bi bi-fonts" style="color:var(--mc-warning) !important;"></i> Text aus Scan / Handschrift <span style="background:var(--mc-warning);color:#fff;font-size:.65rem;font-weight:600;padding:.15rem .45rem;border-radius:999px;letter-spacing:.04em;margin-left:.5rem;">SPIELWIESE</span> <button onclick="toolSchliessen('ocr')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
     <div class="mc-card">
+        <!-- Deutlicher Warnhinweis -->
+        <div style="background:linear-gradient(135deg,rgba(167,12,35,.08),rgba(222,98,80,.06));border:1px solid rgba(167,12,35,.3);border-left:4px solid var(--mc-danger);border-radius:var(--mc-radius-sm);padding:1rem 1.15rem;margin-bottom:1.25rem;">
+            <div style="display:flex;align-items:flex-start;gap:.75rem;">
+                <i class="bi bi-exclamation-triangle-fill" style="color:var(--mc-danger);font-size:1.4rem;flex-shrink:0;margin-top:.1rem;"></i>
+                <div>
+                    <div style="font-weight:700;color:var(--mc-danger);margin-bottom:.4rem;font-size:.95rem;">
+                        Erwartungs-Hinweis: Die Qualität dieses Tools ist miserabel.
+                    </div>
+                    <div style="font-size:.85rem;color:var(--mc-text-dark);line-height:1.55;">
+                        Funktioniert <strong>höchstwahrscheinlich nur bei sehr sauberer, gleichmässiger Druckschrift</strong> (Block-/Maschinenschrift). Bei normaler Handschrift, kursiv, schräggestellt, unterschiedlichen Stiftdicken oder schlechter Scan-Qualität ist die Erkennung <strong>unbrauchbar</strong>.
+                    </div>
+                    <div style="font-size:.78rem;color:var(--mc-text-muted);margin-top:.55rem;line-height:1.5;">
+                        Bitte stelle dich darauf ein, dass das Ergebnis oft nicht verwertbar ist. Das ist eine experimentelle Funktion in der Spielwiese — keine Erwartung an Genauigkeit. Für gedruckte PDFs mit Text-Layer nutze bitte <strong>„Text aus PDF extrahieren"</strong> aus den PDF-Werkzeugen.
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="upload-zone" onclick="document.getElementById('ocrFile').click()"
              ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')"
              ondrop="event.preventDefault();this.classList.remove('dragover');ocrStart(event.dataTransfer.files[0])">
