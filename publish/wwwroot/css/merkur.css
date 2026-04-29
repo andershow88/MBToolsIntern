@@ -75,6 +75,8 @@ a:hover { color: var(--mc-petrol-dark); }
     line-height: 1.2; user-select: none;
 }
 
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
 .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
 
 .tool-card {

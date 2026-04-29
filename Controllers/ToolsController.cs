@@ -1,6 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using PDFtoImage;
+using SkiaSharp;
+using Tesseract;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Writer;
 using PdfSharpDocument = PdfSharp.Pdf.PdfDocument;
@@ -321,5 +324,66 @@ public class ToolsController : Controller
             (pwd[i], pwd[j]) = (pwd[j], pwd[i]);
         }
         return new string(pwd);
+    }
+
+    // ── OCR / Handschrift-Erkennung (Tesseract) ─────────────────────────
+    [HttpPost]
+    [RequestSizeLimit(100_000_000)]
+    public async Task<IActionResult> PdfOcr(IFormFile datei)
+    {
+        if (datei == null || datei.Length == 0)
+            return Json(new { error = "Keine Datei." });
+        if (!datei.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return Json(new { error = "Nur PDF-Dateien werden unterstützt." });
+
+        var tessdataPfad = Path.Combine(_env.ContentRootPath, "tessdata");
+        if (!System.IO.File.Exists(Path.Combine(tessdataPfad, "deu.traineddata")))
+            return Json(new { error = "OCR-Sprachdaten fehlen am Server (tessdata/deu.traineddata)." });
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await datei.CopyToAsync(ms);
+            var pdfBytes = ms.ToArray();
+
+            var sb = new StringBuilder();
+            var konfidenzen = new List<float>();
+            var seiten = 0;
+
+            using var engine = new TesseractEngine(tessdataPfad, "deu", EngineMode.LstmOnly);
+
+            foreach (var bild in Conversion.ToImages(pdfBytes, options: new(Dpi: 300)))
+            {
+                seiten++;
+                using (bild)
+                {
+                    using var bildStream = new MemoryStream();
+                    bild.Encode(bildStream, SKEncodedImageFormat.Png, 100);
+                    using var pix = Pix.LoadFromMemory(bildStream.ToArray());
+                    using var page = engine.Process(pix);
+                    var seitenText = page.GetText() ?? "";
+                    var konfidenz = page.GetMeanConfidence();
+                    konfidenzen.Add(konfidenz);
+
+                    sb.AppendLine($"--- Seite {seiten} (Erkennungskonfidenz: {konfidenz * 100:F0}%) ---");
+                    sb.AppendLine(string.IsNullOrWhiteSpace(seitenText) ? "(kein Text erkannt)" : seitenText.Trim());
+                    sb.AppendLine();
+                }
+            }
+
+            var avg = konfidenzen.Count > 0 ? konfidenzen.Average() : 0f;
+            return Json(new
+            {
+                text = sb.ToString(),
+                seiten,
+                konfidenz = avg * 100,
+                hinweis = "Tesseract erkennt gedruckten Text gut, klare Druckschrift-Handschrift mässig, kursive Handschrift kaum zuverlässig. Konfidenz unter 70 % deutet auf schlechte Erkennung hin."
+            });
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "OCR fehlgeschlagen");
+            return Json(new { error = "OCR fehlgeschlagen: " + ex.Message });
+        }
     }
 }
