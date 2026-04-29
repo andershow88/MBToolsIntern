@@ -1,5 +1,8 @@
+using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using DeepL;
 using Microsoft.AspNetCore.Mvc;
 using PDFtoImage;
@@ -388,6 +391,24 @@ public class ToolsController : Controller
         }
     }
 
+    // ── Proxy-Client (intern bei der Bank: Outbound-Calls über gw-int-01) ──
+    private static HttpMessageHandler BuildHttpHandler()
+    {
+        var host = Environment.GetEnvironmentVariable("PROXY_HOST");
+        if (string.IsNullOrWhiteSpace(host)) return new HttpClientHandler();
+        var user = Environment.GetEnvironmentVariable("PROXY_USER");
+        var pass = Environment.GetEnvironmentVariable("PROXY_PASS");
+        var domain = Environment.GetEnvironmentVariable("PROXY_DOMAIN");
+        var proxyUri = host.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? new Uri(host) : new Uri("http://" + host);
+        var proxy = new WebProxy(proxyUri);
+        if (!string.IsNullOrWhiteSpace(user))
+            proxy.Credentials = new NetworkCredential(user, pass ?? string.Empty, domain ?? string.Empty);
+        return new HttpClientHandler { Proxy = proxy, UseProxy = true };
+    }
+
+    private static HttpClient BuildProxyHttpClient(TimeSpan? timeout = null)
+        => new(BuildHttpHandler()) { Timeout = timeout ?? TimeSpan.FromMinutes(5) };
+
     // ── Übersetzung (DeepL) ─────────────────────────────────────────────
     private Translator? GetDeepL(string? typ = null)
     {
@@ -395,7 +416,21 @@ public class ToolsController : Controller
         var key = istFree
             ? (Environment.GetEnvironmentVariable("DEEPL_API_KEY_FREE") ?? _config["DeepLApiKeyFree"])
             : (Environment.GetEnvironmentVariable("DEEPL_API_KEY") ?? _config["DeepLApiKey"]);
-        return string.IsNullOrWhiteSpace(key) ? null : new Translator(key);
+        if (string.IsNullOrWhiteSpace(key)) return null;
+
+        // Bei gesetztem PROXY_HOST routen wir DeepL durch den Proxy
+        var hatProxy = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("PROXY_HOST"));
+        if (!hatProxy) return new Translator(key);
+
+        var options = new TranslatorOptions
+        {
+            ClientFactory = () => new HttpClientAndDisposeFlag
+            {
+                HttpClient = BuildProxyHttpClient(),
+                DisposeClient = true
+            }
+        };
+        return new Translator(key, options);
     }
 
     [HttpGet]
@@ -482,6 +517,90 @@ public class ToolsController : Controller
         {
             _log.LogError(ex, "DeepL-Dokumentübersetzung fehlgeschlagen");
             return Json(new { error = "Dokument-Übersetzung fehlgeschlagen: " + ex.Message });
+        }
+    }
+
+    // ── OpenAI-Chat ─────────────────────────────────────────────────────
+    [HttpGet]
+    public IActionResult KiChatStatus()
+    {
+        var key = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? _config["OpenAiApiKey"];
+        return Json(new
+        {
+            konfiguriert = !string.IsNullOrWhiteSpace(key),
+            proxyAktiv = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("PROXY_HOST"))
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> KiChat(string nachricht, string? verlauf, string? modell)
+    {
+        if (string.IsNullOrWhiteSpace(nachricht))
+            return Json(new { error = "Bitte eine Nachricht eingeben." });
+
+        var key = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? _config["OpenAiApiKey"];
+        if (string.IsNullOrWhiteSpace(key))
+            return Json(new { error = "OpenAI ist nicht konfiguriert (kein API-Key)." });
+
+        try
+        {
+            var messages = new List<object>
+            {
+                new { role = "system", content =
+                    "Du bist der KI-Chat-Assistent von MerkurTools (Merkur Privatbank). " +
+                    "Antworte praezise, freundlich und auf Deutsch (sofern nicht anders gewuenscht). " +
+                    "Verwende Markdown fuer Listen, Tabellen und Code-Bloecke." }
+            };
+            if (!string.IsNullOrWhiteSpace(verlauf))
+            {
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(verlauf);
+                    if (parsed != null)
+                        foreach (var m in parsed.TakeLast(20))
+                        {
+                            var rolle = m.GetValueOrDefault("rolle", "user") == "assistant" ? "assistant" : "user";
+                            messages.Add(new { role = rolle, content = m.GetValueOrDefault("text", "") });
+                        }
+                }
+                catch { }
+            }
+            messages.Add(new { role = "user", content = nachricht });
+
+            var requestBody = new
+            {
+                model = string.IsNullOrWhiteSpace(modell) ? "gpt-4o-mini" : modell,
+                temperature = 0.5,
+                max_tokens = 2500,
+                messages
+            };
+
+            using var client = BuildProxyHttpClient(TimeSpan.FromSeconds(120));
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+            req.Headers.Add("Authorization", "Bearer " + key);
+            req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                _log.LogWarning("OpenAI {Status}: {Body}", resp.StatusCode, body);
+                return Json(new { error = $"OpenAI: HTTP {(int)resp.StatusCode}" });
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            var antwort = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+            return Json(new { antwort });
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogError(ex, "OpenAI-Chat: Netzwerk-/Proxy-Fehler");
+            return Json(new { error = "Netzwerk-/Proxy-Fehler: " + ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "OpenAI-Chat fehlgeschlagen");
+            return Json(new { error = "Fehler: " + ex.Message });
         }
     }
 }

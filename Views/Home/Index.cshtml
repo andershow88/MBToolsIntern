@@ -54,6 +54,18 @@
     <div class="panel-holder" id="holder-uebersetzen"></div>
 </section>
 
+<!-- ═══ MerkurTools — Künstliche Intelligenz ═══ -->
+<section class="mc-section">
+    <div class="mc-section-title"><i class="bi bi-stars"></i> MerkurTools — Künstliche Intelligenz</div>
+    <div class="tool-grid">
+        <div class="tool-card" onclick="toolOeffnen('kichat')">
+            <div class="tool-icon" style="background:linear-gradient(135deg,#10A37F,#1A7F64);"><i class="bi bi-chat-dots"></i></div>
+            <div><div class="tool-name">Chat (OpenAI)</div><div class="tool-desc">Frage stellen, Dialog führen — läuft via Proxy gegen OpenAI, Markdown-Antworten</div></div>
+        </div>
+    </div>
+    <div class="panel-holder" id="holder-ki"></div>
+</section>
+
 <!-- ═══ MerkurTools — Testzwecke / Spielwiese ═══ -->
 <section class="mc-section">
     <div class="mc-section-title" style="border-bottom-color:var(--mc-warning);"><i class="bi bi-flask" style="color:var(--mc-warning) !important;"></i> MerkurTools — Testzwecke / Spielwiese</div>
@@ -238,6 +250,44 @@
     </div>
 </section>
 
+<!-- KI-Chat (OpenAI) -->
+<section class="mc-section" id="panel-kichat" style="display:none;">
+    <div class="ki-card">
+        <div class="ki-header">
+            <div class="ki-header-left">
+                <div class="ki-logo"><i class="bi bi-chat-dots"></i></div>
+                <div>
+                    <div class="ki-title">KI-Chat</div>
+                    <div class="ki-subtitle">Powered by OpenAI · Anfragen laufen über euren internen Proxy</div>
+                </div>
+            </div>
+            <div class="ki-header-right">
+                <select id="kiModell" class="ki-modell-select" title="Modellwahl">
+                    <option value="gpt-4o-mini" selected>gpt-4o-mini · schnell</option>
+                    <option value="gpt-4o">gpt-4o · ausgewogen</option>
+                    <option value="gpt-4.1">gpt-4.1 · stark</option>
+                    <option value="gpt-4.1-mini">gpt-4.1-mini · effizient</option>
+                </select>
+                <button class="ki-action-ghost" onclick="kichatNeu()" title="Neuer Chat"><i class="bi bi-arrow-clockwise"></i></button>
+                <button class="ki-close" onclick="toolSchliessen('kichat')" title="Schliessen"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+
+        <div id="kiStatus" class="ki-banner" style="display:none;"></div>
+
+        <div id="kiVerlauf" class="ki-verlauf">
+            <!-- Initialnachricht beim Render -->
+        </div>
+
+        <div class="ki-eingabe">
+            <textarea id="kiInput" rows="1" placeholder="Nachricht eingeben…  (Enter zum Senden, Shift+Enter für Zeilenumbruch)"
+                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();kichatSenden();}"
+                      oninput="kiAutoResize(this)"></textarea>
+            <button class="ki-send" id="kiSendBtn" onclick="kichatSenden()" title="Senden"><i class="bi bi-send"></i></button>
+        </div>
+    </div>
+</section>
+
 <!-- OCR / Handschrift (Spielwiese) -->
 <section class="mc-section" id="panel-ocr" style="display:none;">
     <div class="mc-section-title" style="border-bottom-color:var(--mc-warning);"><i class="bi bi-fonts" style="color:var(--mc-warning) !important;"></i> Text aus Scan / Handschrift <span style="background:var(--mc-warning);color:#fff;font-size:.65rem;font-weight:600;padding:.15rem .45rem;border-radius:999px;letter-spacing:.04em;margin-left:.5rem;">SPIELWIESE</span> <button onclick="toolSchliessen('ocr')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mc-text-muted);font-size:1rem;"><i class="bi bi-x-lg"></i></button></div>
@@ -306,11 +356,12 @@
 <script>
 // Globale Tool-Verwaltung
 let _aktivesTool = null;
-const ALLE_TOOLS = ['encrypt','convert','text','ocr','translate','split','merge','info'];
+const ALLE_TOOLS = ['encrypt','convert','text','ocr','translate','split','merge','info','kichat'];
 const TOOL_ZU_HOLDER = {
     encrypt: 'holder-pdf', convert: 'holder-pdf', text: 'holder-pdf',
     split:   'holder-pdf', merge:   'holder-pdf', info:  'holder-pdf',
     translate: 'holder-uebersetzen',
+    kichat:    'holder-ki',
     ocr:       'holder-spielwiese'
 };
 
@@ -333,6 +384,7 @@ function toolOeffnen(id, modus) {
 
     panel.style.display = '';
     if (id === 'translate' && modus) trSetzeModus(modus);
+    if (id === 'kichat') kichatInit();
 
     setTimeout(() => {
         const topbarH = document.querySelector('.mc-topbar')?.offsetHeight || 64;
@@ -355,6 +407,7 @@ function toolReset(id) {
         case 'text':      textReset();      break;
         case 'ocr':       ocrReset();       break;
         case 'translate': translateReset(); break;
+        case 'kichat':    kichatReset();    break;
         case 'info':      infoReset();      break;
         case 'convert':   convertReset();   break;
     }
@@ -512,6 +565,170 @@ async function convertStart(f) {
             res.innerHTML = `<div style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> ${d.error || 'Konvertierung fehlgeschlagen'}</div>`;
         }
     } catch { res.innerHTML = '<div style="color:var(--mc-danger);">Verbindungsfehler</div>'; }
+}
+
+// ═══ KI-Chat (OpenAI) ═══
+let _kiVerlauf = [];
+let _kiBesetzt = false;
+let _kiInitiiert = false;
+
+function kichatInit() {
+    if (_kiInitiiert) return;
+    _kiInitiiert = true;
+    kichatLeerenZuInitial();
+    kichatStatusLaden();
+}
+
+async function kichatStatusLaden() {
+    const banner = document.getElementById('kiStatus');
+    try {
+        const r = await fetch('/api/KiChatStatus');
+        const d = await r.json();
+        if (!d.konfiguriert) {
+            banner.style.display = 'block';
+            banner.style.background = 'rgba(222,98,80,.1)';
+            banner.style.color = 'var(--mc-warning)';
+            banner.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> <strong>OpenAI noch nicht konfiguriert.</strong> Setze in der <code style="background:rgba(0,0,0,.06);padding:.05rem .3rem;border-radius:3px;">web.config</code> die Environment-Variable <code style="background:rgba(0,0,0,.06);padding:.05rem .3rem;border-radius:3px;">OPENAI_API_KEY</code> und starte den App-Pool neu.';
+            return;
+        }
+        banner.style.display = 'none';
+    } catch {}
+}
+
+function kichatLeerenZuInitial() {
+    const v = document.getElementById('kiVerlauf');
+    v.innerHTML = `<div class="ki-msg ki-msg-assistant">
+        <div class="ki-msg-avatar"><i class="bi bi-stars"></i></div>
+        <div class="ki-msg-bubble">
+            <strong>Hallo!</strong> Ich bin der KI-Chat-Assistent von MerkurTools — basierend auf OpenAI, alle Anfragen laufen über euren internen Proxy.<br><br>
+            Beispiele was du fragen kannst:
+            <ul style="margin:.5rem 0 0 1.1rem;">
+                <li>„Erkläre mir die DSGVO-Pflichten beim Versand von Kundendokumenten."</li>
+                <li>„Wie formuliere ich diese E-Mail höflicher?"</li>
+                <li>„Was bedeuten die Begriffe X, Y, Z?"</li>
+                <li>„Schreibe mir einen kurzen Entwurf für …"</li>
+            </ul>
+        </div>
+    </div>`;
+    _kiVerlauf = [];
+}
+
+function kichatNeu() {
+    if (_kiBesetzt) return;
+    kichatLeerenZuInitial();
+    document.getElementById('kiInput').value = '';
+    kiAutoResize(document.getElementById('kiInput'));
+}
+
+function kichatReset() {
+    _kiVerlauf = [];
+    document.getElementById('kiInput').value = '';
+    if (_kiInitiiert) kichatLeerenZuInitial();
+}
+
+function kiAutoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+
+function kichatBubbleHinzu(rolle, text, alsHTML) {
+    const v = document.getElementById('kiVerlauf');
+    const wrap = document.createElement('div');
+    wrap.className = 'ki-msg ki-msg-' + rolle;
+    const avatar = document.createElement('div');
+    avatar.className = 'ki-msg-avatar';
+    avatar.innerHTML = rolle === 'user' ? '<i class="bi bi-person"></i>' : '<i class="bi bi-stars"></i>';
+    const bubble = document.createElement('div');
+    bubble.className = 'ki-msg-bubble';
+    if (alsHTML) bubble.innerHTML = text;
+    else bubble.textContent = text;
+    wrap.appendChild(avatar); wrap.appendChild(bubble);
+    v.appendChild(wrap);
+    v.scrollTop = v.scrollHeight;
+    return bubble;
+}
+
+function kichatTippenAnzeigen() {
+    const b = kichatBubbleHinzu('assistant', '<div class="ki-typing"><span></span><span></span><span></span></div>', true);
+    b.dataset.typing = '1';
+    return b.parentElement;
+}
+
+async function kichatSenden() {
+    if (_kiBesetzt) return;
+    const inp = document.getElementById('kiInput');
+    const txt = inp.value.trim();
+    if (!txt) return;
+    _kiBesetzt = true;
+    inp.value = ''; kiAutoResize(inp);
+    document.getElementById('kiSendBtn').disabled = true;
+
+    kichatBubbleHinzu('user', txt, false);
+    const tippen = kichatTippenAnzeigen();
+
+    try {
+        const fd = new FormData();
+        fd.append('nachricht', txt);
+        fd.append('verlauf', JSON.stringify(_kiVerlauf));
+        fd.append('modell', document.getElementById('kiModell').value);
+        const r = await fetch('/api/KiChat', { method: 'POST', body: fd });
+        const d = await r.json();
+        tippen.remove();
+        if (d.error) {
+            kichatBubbleHinzu('assistant', '<span style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> ' + d.error + '</span>', true);
+        } else {
+            kichatBubbleHinzu('assistant', kichatMarkdown(d.antwort || '(leere Antwort)'), true);
+            _kiVerlauf.push({ rolle: 'user', text: txt });
+            _kiVerlauf.push({ rolle: 'assistant', text: d.antwort || '' });
+            if (_kiVerlauf.length > 24) _kiVerlauf = _kiVerlauf.slice(-24);
+        }
+    } catch (e) {
+        tippen.remove();
+        kichatBubbleHinzu('assistant', '<span style="color:var(--mc-danger);"><i class="bi bi-exclamation-triangle"></i> Verbindungsfehler.</span>', true);
+    } finally {
+        _kiBesetzt = false;
+        document.getElementById('kiSendBtn').disabled = false;
+        inp.focus();
+    }
+}
+
+function kichatMarkdown(raw) {
+    if (!raw) return '';
+    let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => `<pre>${code.trim()}</pre>`);
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/((?:\|.+\|(?:\n|$))+)/g, function(tableBlock) {
+        const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+        if (rows.length < 2) return tableBlock;
+        let html = '<table>';
+        rows.forEach((row, idx) => {
+            if (row.match(/^\|[\s\-:|]+\|$/)) return;
+            const cells = row.split('|').filter((c, i, a) => i > 0 && i < a.length - 1);
+            const tag = idx === 0 ? 'th' : 'td';
+            html += '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+        });
+        return html + '</table>';
+    });
+    s = s.replace(/^####\s+(.+)$/gm, '<h4 style="margin:.6rem 0 .3rem;font-size:.9rem;font-weight:600;">$1</h4>');
+    s = s.replace(/^###\s+(.+)$/gm, '<h3 style="margin:.7rem 0 .3rem;font-size:.95rem;font-weight:600;">$1</h3>');
+    s = s.replace(/^##\s+(.+)$/gm, '<h2 style="margin:.8rem 0 .35rem;font-size:1rem;font-weight:600;">$1</h2>');
+    s = s.replace(/^#\s+(.+)$/gm, '<h1 style="margin:.8rem 0 .35rem;font-size:1.1rem;font-weight:700;">$1</h1>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    s = s.replace(/(^|\n)((?:\d+\.\s+.+(?:\n|$))+)/g, (m, p, list) => {
+        const items = list.split('\n').map(l => l.replace(/^\d+\.\s+/,'').trim()).filter(x=>x);
+        return p + '<ol>' + items.map(i => '<li>'+i+'</li>').join('') + '</ol>';
+    });
+    s = s.replace(/(^|\n)(\s*[-*]\s+.+(?:\n\s*[-*]\s+.+)*)/g, (m, p, list) => {
+        const items = list.split('\n').map(l => l.replace(/^\s*[-*]\s+/,'').trim()).filter(x=>x);
+        return p + '<ul>' + items.map(i => '<li>'+i+'</li>').join('') + '</ul>';
+    });
+    const parts = s.split(/\n{2,}/);
+    return parts.map(p => {
+        p = p.trim(); if (!p) return '';
+        if (/^<(h[1-6]|ul|ol|pre|table)/.test(p)) return p;
+        return '<p style="margin:0 0 .5rem;line-height:1.55;">' + p.replace(/\n/g,'<br/>') + '</p>';
+    }).join('');
 }
 
 // ═══ Übersetzen (DeepL) ═══
